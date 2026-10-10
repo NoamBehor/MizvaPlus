@@ -56,6 +56,8 @@ import {
 
 } from '@/utils/storage';
 
+import { migrateCompletions } from '@/utils/uuid';
+
 
 
 interface TodayProgress {
@@ -186,6 +188,14 @@ export const useMitzvahStore = create<MitzvahState>((set, get) => ({
 
     const storedCompletions = await getJson<MitzvahCompletion[]>(completionsKey);
 
+    const migratedCompletions = migrateCompletions(storedCompletions ?? []);
+
+    if (migratedCompletions.changed) {
+
+      await setJson(completionsKey, migratedCompletions.records);
+
+    }
+
 
 
     const preferences = storedPreferences ?? createDefaultPreferences(userId);
@@ -196,7 +206,7 @@ export const useMitzvahStore = create<MitzvahState>((set, get) => ({
 
       preferences,
 
-      completions: storedCompletions ?? [],
+      completions: migratedCompletions.records,
 
     });
 

@@ -229,6 +229,29 @@ record(
   mergedEventsXp === 100 && mergedEventsXp !== localXp + cloudXp,
 );
 
+// ─── UUID client IDs (Phase 10.6.6) ─────────────────────────────────────────
+
+record(
+  'completeMitzvah uses generateUuidV4',
+  readSrc('services/mitzvot.ts').includes('id: generateUuidV4()'),
+);
+record(
+  'quiz attempts use generateUuidV4',
+  readSrc('services/quiz.ts').includes('id: generateUuidV4()'),
+);
+record(
+  'sync migrates local UUIDs before pull/push',
+  read('src/services/cloud/syncService.ts').includes('migratePersistedUuidRecords'),
+);
+record(
+  'completion upsert validates UUID ids',
+  read('src/services/cloud/mitzvahRepository.ts').includes('assertCloudUuid'),
+);
+record(
+  'quiz upsert validates UUID ids',
+  read('src/services/cloud/quizRepository.ts').includes('assertCloudUuid'),
+);
+
 // ─── Summary ────────────────────────────────────────────────────────────────
 
 const passed = results.filter((r) => r.pass).length;

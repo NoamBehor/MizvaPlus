@@ -8,8 +8,8 @@ import type {
   QuizQuestionPublic,
   QuizSubmitResult,
 } from '@/types/quiz';
-import { generateId } from '@/utils/date';
 import { getActivityDateKey } from '@/utils/timezone';
+import { generateUuidV4 } from '@/utils/uuid';
 
 function dateKeyToIndex(dateKey: string): number {
   const [year, month, day] = dateKey.split('-').map(Number);
@@ -88,7 +88,7 @@ export async function submitDailyQuizAnswer(
   const xpToAward = isCorrect ? question.xpReward : 0;
 
   const attempt: DailyQuizAttempt = {
-    id: generateId(),
+    id: generateUuidV4(),
     userId,
     questionId: question.id,
     dateKey,

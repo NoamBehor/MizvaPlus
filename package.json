@@ -49,7 +49,8 @@
     "verify:phase10.2": "node scripts/verify-phase10.2.mjs",
     "verify:phase10.3": "node scripts/verify-phase10.3.mjs",
     "verify:phase10.5": "node scripts/verify-phase10.5.mjs",
-    "verify:countdown": "node scripts/verify-countdown.mjs"
+    "verify:countdown": "node scripts/verify-countdown.mjs",
+    "verify:uuid": "node scripts/verify-uuid.mjs"
   },
   "private": true
 }

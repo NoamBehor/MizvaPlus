@@ -11,6 +11,7 @@ import {
   quizAttemptsStorageKey,
   setJson,
 } from '@/utils/storage';
+import { migrateQuizAttempts } from '@/utils/uuid';
 
 interface GamificationState {
   quizAttempts: DailyQuizAttempt[];
@@ -38,9 +39,14 @@ export const useGamificationStore = create<GamificationState>((set, get) => ({
       quizAttemptsStorageKey(userId),
     );
     const storedBadges = await getJson<UserBadge[]>(badgesStorageKey(userId));
+    const migratedAttempts = migrateQuizAttempts(storedAttempts ?? []);
+
+    if (migratedAttempts.changed) {
+      await setJson(quizAttemptsStorageKey(userId), migratedAttempts.records);
+    }
 
     set({
-      quizAttempts: storedAttempts ?? [],
+      quizAttempts: migratedAttempts.records,
       badges: storedBadges ?? [],
       pendingBadgeNotifications: [],
     });

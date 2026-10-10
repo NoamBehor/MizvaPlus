@@ -490,6 +490,22 @@ function runPhase1051Checks() {
   );
 
   recordCheck(
+    'P10.6.6: Android channel does not set sound: default',
+    !channelsSrc.includes("sound: 'default'") &&
+      !channelsSrc.includes('sound: "default"'),
+  );
+
+  recordCheck(
+    'P10.6.6: Android channel omits custom sound property',
+    !/setNotificationChannelAsync\([\s\S]*sound\s*:/.test(channelsSrc),
+  );
+
+  recordCheck(
+    'P10.6.6: existing Android channel is deleted before recreate',
+    channelsSrc.includes('deleteNotificationChannelAsync'),
+  );
+
+  recordCheck(
     'P10.5-005: reminder timezone policy documented (Israel wall clock)',
     reminderTzSrc.includes('Asia/Jerusalem') &&
       reminderTzSrc.includes('option B'),

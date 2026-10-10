@@ -5,8 +5,8 @@ import type {
   MitzvahCompletion,
   UserMitzvahPreference,
 } from '@/types/mitzvah';
-import { generateId } from '@/utils/date';
 import { getActivityDateKey } from '@/utils/timezone';
+import { generateUuidV4 } from '@/utils/uuid';
 
 export function getAllMitzvot(): Mitzvah[] {
   return MITZVOT_SEED;
@@ -82,7 +82,7 @@ export function completeMitzvah(
   }
 
   const completion: MitzvahCompletion = {
-    id: generateId(),
+    id: generateUuidV4(),
     userId,
     mitzvahId,
     completedAt: new Date().toISOString(),

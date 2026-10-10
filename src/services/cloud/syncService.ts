@@ -27,6 +27,7 @@ import {
 import type { CloudSnapshot } from '@/services/cloud/types';
 import { applyProfileFromSync } from '@/services/profile';
 import { isSupabaseConfigured } from '@/services/supabase';
+import { migratePersistedUuidRecords } from '@/services/cloud/localUuidMigration';
 import { useAppStore } from '@/store/appStore';
 import { useGamificationStore } from '@/store/gamificationStore';
 import { useMitzvahStore } from '@/store/mitzvahStore';
@@ -172,6 +173,13 @@ export async function synchronizeUserData(userId: string): Promise<void> {
     useSyncStore.getState().setStatus('syncing');
 
     try {
+      const migrated = await migratePersistedUuidRecords(userId, {
+        completions: useMitzvahStore.getState().completions,
+        quizAttempts: useGamificationStore.getState().quizAttempts,
+      });
+      useMitzvahStore.setState({ completions: migrated.completions });
+      useGamificationStore.setState({ quizAttempts: migrated.quizAttempts });
+
       const snapshot = await pullCloudSnapshot(userId);
       await applyMergedState(userId, snapshot);
       await pushLocalState(userId);

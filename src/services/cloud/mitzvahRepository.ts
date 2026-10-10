@@ -1,6 +1,7 @@
 import { getSupabaseClient, isSupabaseConfigured } from '@/services/supabase';
 import type { CloudMitzvahCompletion, CloudMitzvahPreference } from '@/services/cloud/types';
 import { withTimeout } from '@/services/cloud/withTimeout';
+import { assertCloudUuid } from '@/utils/uuid';
 
 export async function fetchPreferences(
   userId: string,
@@ -79,14 +80,17 @@ export async function upsertCompletions(
     return;
   }
 
-  const payload = rows.map((row) => ({
-    id: row.id,
-    user_id: row.user_id,
-    mitzvah_id: row.mitzvah_id,
-    activity_date: row.activity_date,
-    completed_at: row.completed_at,
-    xp_awarded: row.xp_awarded,
-  }));
+  const payload = rows.map((row) => {
+    assertCloudUuid(row.id, 'mitzvah_completions.id');
+    return {
+      id: row.id,
+      user_id: row.user_id,
+      mitzvah_id: row.mitzvah_id,
+      activity_date: row.activity_date,
+      completed_at: row.completed_at,
+      xp_awarded: row.xp_awarded,
+    };
+  });
 
   const { error } = await withTimeout(
     getSupabaseClient()
