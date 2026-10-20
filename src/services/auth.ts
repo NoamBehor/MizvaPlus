@@ -1,6 +1,18 @@
 import type { AuthChangeEvent, Session, User } from '@supabase/supabase-js';
 
+import {
+  buildAuthFailureDetails,
+  logAuthFailureDiagnostics,
+  logAuthSuccessDiagnostics,
+  readRootAuthGateSession,
+  translateAuthErrorMessage,
+} from '@/services/auth/authDiagnostics';
+import { AuthFailure } from '@/services/auth/authFailure';
+import { getDevTestCredentials } from '@/services/auth/devTestCredentials';
 import { getSupabaseClient, isSupabaseConfigured } from '@/services/supabase';
+
+export { AuthFailure } from '@/services/auth/authFailure';
+export type { AuthFailureDetails } from '@/services/auth/authFailure';
 
 export interface AuthResult {
   user: User;
@@ -30,22 +42,25 @@ export function isEmailConfirmationUrl(url: string): boolean {
   );
 }
 
-const HEBREW_ERRORS: Record<string, string> = {
-  'Invalid login credentials': 'אימייל או סיסמה שגויים',
-  'User already registered': 'משתמש עם אימייל זה כבר קיים',
-  'Password should be at least 6 characters': 'הסיסמה חייבת להכיל לפחות 6 תווים',
-  'Unable to validate email address: invalid format': 'כתובת אימייל לא תקינה',
-  'Email not confirmed': 'יש לאשר את כתובת האימייל לפני ההתחברות',
-  'Email rate limit exceeded': 'נשלחו יותר מדי בקשות. נסה שוב בעוד כמה דקות',
-  'For security purposes, you can only request this once every 60 seconds':
-    'נשלחו יותר מדי בקשות. נסה שוב בעוד כמה דקות',
-  'Token has expired or is invalid': 'הקישור לאיפוס הסיסמה פג תוקף. בקש קישור חדש',
-  'New password should be different from the old password': 'הסיסמה החדשה חייבת להיות שונה מהסיסמה הקודמת',
-  'Auth session missing!': 'הקישור לאיפוס הסיסמה לא תקין. בקש קישור חדש',
-};
+function throwAuthFailure(
+  error: unknown,
+  phase: 'sign_in' | 'session' | 'post_auth_init',
+  options: {
+    sessionCreated?: boolean;
+    rootAuthGateHasSession?: boolean | null;
+    sessionClearedAfterSignIn?: boolean | null;
+  } = {},
+): never {
+  const details = buildAuthFailureDetails(error, phase, options);
+  const userMessage =
+    phase === 'sign_in' || phase === 'session'
+      ? translateAuthErrorMessage(details.message)
+      : error instanceof Error
+        ? error.message
+        : translateAuthErrorMessage(details.message);
 
-function translateAuthError(message: string): string {
-  return HEBREW_ERRORS[message] ?? 'אירעה שגיאה. נסה שוב.';
+  logAuthFailureDiagnostics('auth_failure', details);
+  throw new AuthFailure(userMessage, details);
 }
 
 function extractUrlParams(url: string): Record<string, string> {
@@ -82,15 +97,16 @@ export async function getCurrentSession(): Promise<Session | null> {
 
   const { data, error } = await getSupabaseClient().auth.getSession();
   if (error) {
-    throw new Error(translateAuthError(error.message));
+    throwAuthFailure(error, 'session');
   }
 
   return data.session;
 }
 
-export async function signInWithEmail(
+async function signInWithPasswordInternal(
   email: string,
   password: string,
+  source: 'manual' | 'dev_quick',
 ): Promise<AuthResult> {
   if (!isSupabaseConfigured()) {
     throw new Error(
@@ -104,14 +120,51 @@ export async function signInWithEmail(
   });
 
   if (error) {
-    throw new Error(translateAuthError(error.message));
+    throwAuthFailure(error, 'sign_in', { sessionCreated: false });
   }
+
+  const sessionCreated = Boolean(data.session);
+  const rootAuthGateHasSession = await readRootAuthGateSession();
 
   if (!data.user || !data.session) {
-    throw new Error('ההתחברות נכשלה. נסה שוב.');
+    throwAuthFailure(new Error('ההתחברות נכשלה. נסה שוב.'), 'session', {
+      sessionCreated,
+      rootAuthGateHasSession,
+    });
   }
 
+  logAuthSuccessDiagnostics('auth_sign_in_success', {
+    sessionCreated,
+    rootAuthGateHasSession,
+    userId: data.user.id,
+    source,
+  });
+
   return { user: data.user, session: data.session };
+}
+
+export async function signInWithEmail(
+  email: string,
+  password: string,
+): Promise<AuthResult> {
+  return signInWithPasswordInternal(email, password, 'manual');
+}
+
+export async function signInWithDevTestAccount(): Promise<AuthResult> {
+  if (!__DEV__) {
+    throw new Error('כניסה מהירה לפיתוח זמינה רק בסביבת פיתוח.');
+  }
+
+  const credentials = getDevTestCredentials();
+  if (!credentials) {
+    throw new Error('לא הוגדר חשבון בדיקה לפיתוח');
+  }
+
+  return signInWithPasswordInternal(
+    credentials.email,
+    credentials.password,
+    'dev_quick',
+  );
 }
 
 export async function signUpWithEmail(
@@ -139,11 +192,11 @@ export async function signUpWithEmail(
   });
 
   if (error) {
-    throw new Error(translateAuthError(error.message));
+    throwAuthFailure(error, 'sign_in');
   }
 
   if (!data.user) {
-    throw new Error('ההרשמה נכשלה. נסה שוב.');
+    throwAuthFailure(new Error('ההרשמה נכשלה. נסה שוב.'), 'sign_in');
   }
 
   if (!data.session) {
@@ -169,7 +222,7 @@ export async function resendConfirmationEmail(email: string): Promise<void> {
   });
 
   if (error) {
-    throw new Error(translateAuthError(error.message));
+    throwAuthFailure(error, 'sign_in');
   }
 }
 
@@ -186,7 +239,7 @@ export async function resetPasswordForEmail(email: string): Promise<void> {
   );
 
   if (error) {
-    throw new Error(translateAuthError(error.message));
+    throwAuthFailure(error, 'sign_in');
   }
 }
 
@@ -202,7 +255,7 @@ export async function updatePassword(newPassword: string): Promise<void> {
   });
 
   if (error) {
-    throw new Error(translateAuthError(error.message));
+    throwAuthFailure(error, 'sign_in');
   }
 }
 
@@ -225,7 +278,7 @@ export async function createSessionFromUrl(url: string): Promise<Session | null>
   });
 
   if (error) {
-    throw new Error(translateAuthError(error.message));
+    throwAuthFailure(error, 'session');
   }
 
   return data.session;
@@ -238,7 +291,7 @@ export async function signOut(): Promise<void> {
 
   const { error } = await getSupabaseClient().auth.signOut();
   if (error) {
-    throw new Error(translateAuthError(error.message));
+    throwAuthFailure(error, 'session');
   }
 }
 

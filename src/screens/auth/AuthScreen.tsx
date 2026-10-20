@@ -32,19 +32,21 @@ import { typography } from '@/constants/theme';
 
 import type { RootStackParamList } from '@/navigation/types';
 
-import { signInWithEmail, signUpWithEmail } from '@/services/auth';
+import {
+  AuthFailure,
+  signInWithDevTestAccount,
+  signInWithEmail,
+  signUpWithEmail,
+} from '@/services/auth';
 
-import { processSyncQueue, synchronizeUserData } from '@/services/cloud/syncService';
+import { logAuthFailureDiagnostics } from '@/services/auth/authDiagnostics';
 
-import { createProfile, getCurrentProfile } from '@/services/profile';
+import { completeAuthenticatedSignIn } from '@/services/auth/completeAuthenticatedSignIn';
+
+import { isDevAuthBypassActive } from '@/services/auth/devAuthBypass';
+import { isDevTestAccountConfigured } from '@/services/auth/devTestCredentials';
 
 import { useAppStore } from '@/store/appStore';
-
-import { useGamificationStore } from '@/store/gamificationStore';
-
-import { useMitzvahStore } from '@/store/mitzvahStore';
-
-import { useUserStore } from '@/store/userStore';
 
 
 
@@ -142,19 +144,11 @@ export function AuthScreen({ navigation }: AuthScreenProps) {
 
   const isSupabaseConfigured = useAppStore((state) => state.isSupabaseConfigured);
 
-  const setAuthenticated = useAppStore((state) => state.setAuthenticated);
-
-  const initializeApp = useAppStore((state) => state.initialize);
-
-  const setUser = useUserStore((state) => state.setUser);
-
-  const initializeMitzvot = useMitzvahStore((state) => state.initialize);
-
-  const initializeGamification = useGamificationStore((state) => state.initialize);
+  const devTestAccountConfigured = __DEV__ && isDevTestAccountConfigured();
 
 
 
-  const initializeAuthenticatedUser = async (
+  const finishSignIn = async (
 
     userId: string,
 
@@ -164,39 +158,57 @@ export function AuthScreen({ navigation }: AuthScreenProps) {
 
   ) => {
 
-    let profile = await getCurrentProfile(userId);
-
-
-
-    if (!profile) {
-
-      profile = await createProfile(userId, userEmail, userDisplayName);
-
-    }
-
-
-
-    setUser(profile);
-
-    setAuthenticated(true);
-
-    await initializeApp(userId);
-
-    await initializeMitzvot(userId);
-
-    await initializeGamification(userId);
-
-
-
     try {
 
-      await synchronizeUserData(userId);
+      await completeAuthenticatedSignIn(userId, userEmail, userDisplayName);
 
-    } catch {
+    } catch (initError) {
 
-      await processSyncQueue(userId);
+      if (initError instanceof AuthFailure) {
+
+        throw initError;
+
+      }
+
+      const details = {
+
+        code: null,
+
+        message:
+
+          initError instanceof Error ? initError.message : String(initError),
+
+        status: null,
+
+        phase: 'post_auth_init' as const,
+
+        userExistsHint: 'unknown' as const,
+
+        sessionCreated: true,
+
+        rootAuthGateHasSession: true,
+
+        sessionClearedAfterSignIn: null,
+
+      };
+
+      logAuthFailureDiagnostics('auth_post_sign_in_init_failure', details);
+
+      throw new AuthFailure(
+
+        initError instanceof Error ? initError.message : 'אירעה שגיאה. נסה שוב.',
+
+        details,
+
+      );
 
     }
+
+
+
+    const onboardingComplete = useAppStore.getState().onboardingComplete;
+
+    navigation.replace(onboardingComplete ? 'Main' : 'Onboarding');
 
   };
 
@@ -252,7 +264,7 @@ export function AuthScreen({ navigation }: AuthScreenProps) {
 
         const { user } = await signInWithEmail(email, password);
 
-        await initializeAuthenticatedUser(
+        await finishSignIn(
 
           user.id,
 
@@ -261,12 +273,6 @@ export function AuthScreen({ navigation }: AuthScreenProps) {
           user.user_metadata?.display_name ?? email.split('@')[0],
 
         );
-
-
-
-        const onboardingComplete = useAppStore.getState().onboardingComplete;
-
-        navigation.replace(onboardingComplete ? 'Main' : 'Onboarding');
 
         return;
 
@@ -296,7 +302,7 @@ export function AuthScreen({ navigation }: AuthScreenProps) {
 
 
 
-      await initializeAuthenticatedUser(
+      await finishSignIn(
 
         signUpResult.user.id,
 
@@ -305,8 +311,6 @@ export function AuthScreen({ navigation }: AuthScreenProps) {
         displayName.trim(),
 
       );
-
-      navigation.replace('Onboarding');
 
     } catch (authError) {
 
@@ -343,6 +347,76 @@ export function AuthScreen({ navigation }: AuthScreenProps) {
   const handleForgotPassword = () => {
 
     navigation.navigate('ForgotPassword');
+
+  };
+
+
+
+  const handleDevQuickSignIn = async () => {
+
+    setError(null);
+
+
+
+    if (!isSupabaseConfigured) {
+
+      setError(
+
+        'Supabase אינו מוגדר. הגדר את EXPO_PUBLIC_SUPABASE_URL ו-EXPO_PUBLIC_SUPABASE_ANON_KEY בקובץ .env',
+
+      );
+
+      return;
+
+    }
+
+
+
+    if (!devTestAccountConfigured) {
+
+      setError('לא הוגדר חשבון בדיקה לפיתוח');
+
+      return;
+
+    }
+
+
+
+    setIsSubmitting(true);
+
+
+
+    try {
+
+      const { user } = await signInWithDevTestAccount();
+
+      await finishSignIn(
+
+        user.id,
+
+        user.email ?? '',
+
+        user.user_metadata?.display_name ?? user.email?.split('@')[0] ?? 'משתמש',
+
+      );
+
+    } catch (authError) {
+
+      const message =
+
+        authError instanceof Error
+
+          ? authError.message
+
+          : 'אירעה שגיאה. נסה שוב.';
+
+      setError(message);
+
+    } finally {
+
+      setIsSubmitting(false);
+
+    }
 
   };
 
@@ -712,6 +786,50 @@ export function AuthScreen({ navigation }: AuthScreenProps) {
 
 
 
+          {__DEV__ && !isDevAuthBypassActive() && mode === 'login' ? (
+
+            <Pressable
+
+              onPress={() => void handleDevQuickSignIn()}
+
+              disabled={isSubmitting}
+
+              accessibilityRole="button"
+
+              accessibilityLabel="כניסה מהירה לפיתוח"
+
+              className="mt-4 items-center rounded-2xl border px-4 py-3"
+
+              style={{
+
+                borderColor: colors.border,
+
+                backgroundColor: colors.surface,
+
+                opacity: isSubmitting ? 0.7 : 1,
+
+                minHeight: 48,
+
+              }}
+
+            >
+
+              <Text style={[typography.body, { color: colors.secondary }]}>
+
+                {devTestAccountConfigured
+
+                  ? 'כניסה מהירה לפיתוח'
+
+                  : 'לא הוגדר חשבון בדיקה לפיתוח'}
+
+              </Text>
+
+            </Pressable>
+
+          ) : null}
+
+
+
           <Pressable
 
             onPress={toggleMode}
@@ -740,6 +858,18 @@ export function AuthScreen({ navigation }: AuthScreenProps) {
 
             </Text>
 
+          </Pressable>
+
+          <Pressable
+            onPress={() => navigation.navigate('LegalDocument', { document: 'privacy' })}
+            accessibilityRole="button"
+            accessibilityLabel="מדיניות פרטיות"
+            className="mt-2 items-center py-2"
+            style={{ minHeight: 44 }}
+          >
+            <Text style={[typography.bodySmall, { color: colors.accent }]}>
+              מדיניות פרטיות
+            </Text>
           </Pressable>
 
         </ScrollView>

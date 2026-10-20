@@ -23,6 +23,7 @@ function getTimeZoneOffsetMs(timeZone: string, date: Date): number {
     minute: '2-digit',
     second: '2-digit',
     hour12: false,
+    hourCycle: 'h23',
   });
 
   const parts = Object.fromEntries(
@@ -32,11 +33,13 @@ function getTimeZoneOffsetMs(timeZone: string, date: Date): number {
       .map((part) => [part.type, part.value]),
   );
 
+  const hourRaw = Number(parts.hour);
+  const hour = hourRaw === 24 ? 0 : hourRaw;
   const asUtc = Date.UTC(
     Number(parts.year),
     Number(parts.month) - 1,
     Number(parts.day),
-    Number(parts.hour),
+    hour,
     Number(parts.minute),
     Number(parts.second),
   );
@@ -49,8 +52,16 @@ export function israelWallTimeToDate(dateKey: string, time: string): Date {
   const [year, month, day] = dateKey.split('-').map(Number);
   const { hours, minutes } = parseTimeString(time);
   const utcGuess = Date.UTC(year, month - 1, day, hours, minutes, 0);
-  const offset = getTimeZoneOffsetMs(ISRAEL_TIMEZONE, new Date(utcGuess));
-  return new Date(utcGuess - offset);
+  let instant = utcGuess;
+  for (let i = 0; i < 4; i += 1) {
+    const offset = getTimeZoneOffsetMs(ISRAEL_TIMEZONE, new Date(instant));
+    const next = utcGuess - offset;
+    if (next === instant) {
+      break;
+    }
+    instant = next;
+  }
+  return new Date(instant);
 }
 
 /**

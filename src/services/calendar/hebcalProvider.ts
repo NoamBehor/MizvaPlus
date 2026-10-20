@@ -26,6 +26,7 @@ import { buildCalendarLocationCacheKey } from '@/utils/calendarLocation';
 import {
   buildWeeklyParashaFromEvent,
   findWeeklyParashaForDate,
+  getShabbatDateKeyForWeek,
   isParashaEvent,
 } from '@/utils/parasha';
 import {
@@ -152,9 +153,21 @@ function classifyEventType(ev: Event): HebrewCalendarEventType {
   return 'OTHER';
 }
 
+function resolveFastVariant(ev: Event): 'major' | 'minor' | undefined {
+  const eventFlags = ev.getFlags();
+  if (eventFlags & flags.MAJOR_FAST) {
+    return 'major';
+  }
+  if (eventFlags & flags.MINOR_FAST) {
+    return 'minor';
+  }
+  return undefined;
+}
+
 function mapHebcalEvent(ev: Event, dateKey: string): HebrewCalendarEvent {
   const type = classifyEventType(ev);
   const titleHebrew = ev.render('he');
+  const eventDesc = ev.getDesc();
   const eventKey = normalizeEventKey(ev.basename());
   const linkedMitzvahIds = [
     ...getMitzvahIdsForEventTitle(ev.basename()),
@@ -169,13 +182,17 @@ function mapHebcalEvent(ev: Event, dateKey: string): HebrewCalendarEvent {
     startDate = ev.eventTime.toISOString();
   }
 
+  const fastVariant = type === 'FAST' ? resolveFastVariant(ev) : undefined;
+
   return {
     id: `${eventKey}-${dateKey}-${type}`,
     type,
     titleHebrew,
+    eventDesc,
     dateKey,
     startDate,
     startTime,
+    fastVariant,
     eventKey,
     linkedMitzvahIds,
   };
@@ -253,7 +270,12 @@ function buildWeeklyParasha(
   dateKey: string,
   location: Location,
 ): WeeklyParasha | null {
-  const rawEvents = collectRawEventsForRange(dateKey, dateKey, location);
+  const shabbatDateKey = getShabbatDateKeyForWeek(dateKey);
+  const rawEvents = collectRawEventsForRange(
+    shabbatDateKey,
+    shabbatDateKey,
+    location,
+  );
   return findWeeklyParashaForDate(dateKey, rawEvents);
 }
 

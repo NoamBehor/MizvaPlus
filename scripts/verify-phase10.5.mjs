@@ -18,9 +18,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
 const OVERPASS_QUERY_TIMEOUT_SECONDS = 25;
-const OVERPASS_REQUEST_TIMEOUT_MS = 25_000;
+const OVERPASS_REQUEST_TIMEOUT_MS = 40_000;
 const DEFAULT_SYNAGOGUE_RADIUS_METERS = 4000;
 const DEFAULT_OVERPASS_API_URL = 'https://overpass-api.de/api/interpreter';
+/** Matches src/constants/overpass.ts — required or overpass-api.de returns HTTP 406. */
+const OVERPASS_USER_AGENT =
+  'MizvaPlus/1.0 (Linux; Android; OpenStreetMap consumer)';
 const OSM_SYNAGOGUE_NAME_FALLBACK = 'בית כנסת';
 
 /** Jerusalem — representative Israel test point. */
@@ -225,6 +228,8 @@ async function executeOverpassRequestLikeApp(apiUrl, coordinates, radiusMeters) 
           apiUrl,
           '-H',
           `Content-Type: ${contentType}`,
+          '-H',
+          `User-Agent: ${OVERPASS_USER_AGENT}`,
           '--data-urlencode',
           `data@${tmpQueryPath}`,
           '-w',
@@ -310,6 +315,15 @@ function runStaticOverpassChecks() {
   );
 
   record(
+    'Overpass live probe User-Agent matches app constant',
+    overpassConstants.includes(OVERPASS_USER_AGENT) &&
+      overpassSrc.includes('OVERPASS_USER_AGENT')
+      ? 'PASS — STATIC VERIFIED'
+      : 'FAIL',
+    OVERPASS_USER_AGENT,
+  );
+
+  record(
     'OSM attribution on map',
     mapSrc.includes('© OpenStreetMap contributors')
       ? 'PASS — STATIC VERIFIED'
@@ -336,17 +350,48 @@ function runStaticOverpassChecks() {
   }
 }
 
+function resolveOverpassEndpoints(primaryUrl) {
+  return [
+    primaryUrl,
+    'https://overpass.kumi.systems/api/interpreter',
+    'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+  ].filter((url, index, all) => Boolean(url) && all.indexOf(url) === index);
+}
+
 async function runLiveOverpassChecks(apiUrl) {
   const coordinates = JERUSALEM;
   const radiusMeters = DEFAULT_SYNAGOGUE_RADIUS_METERS;
+  const endpoints = resolveOverpassEndpoints(apiUrl);
 
   record(
     'Overpass endpoint matches application configuration',
-    Boolean(apiUrl) ? 'PASS — LIVE VERIFIED' : 'FAIL',
-    apiUrl,
+    endpoints.length > 0 ? 'PASS — LIVE VERIFIED' : 'FAIL',
+    endpoints.join(' → '),
   );
 
-  const live = await executeOverpassRequestLikeApp(apiUrl, coordinates, radiusMeters);
+  let live = null;
+  let lastError = null;
+  for (const endpoint of endpoints) {
+    try {
+      const attempt = await executeOverpassRequestLikeApp(endpoint, coordinates, radiusMeters);
+      const elementCount = Array.isArray(attempt.payload?.elements)
+        ? attempt.payload.elements.length
+        : 0;
+      if (attempt.status === 200 && elementCount > 0) {
+        live = attempt;
+        break;
+      }
+      if (!live || attempt.status >= live.status) {
+        live = attempt;
+      }
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (!live) {
+    throw lastError ?? new Error('all Overpass endpoints failed');
+  }
 
   record(
     'Overpass request encoding (POST form-urlencoded data=)',

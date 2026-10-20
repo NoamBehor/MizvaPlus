@@ -180,9 +180,142 @@ export interface Database {
         };
         Relationships: [];
       };
+      parasha_podcast_episodes: {
+        Row: {
+          id: string;
+          parasha_key: string;
+          hebrew_title: string;
+          description: string;
+          audio_storage_path: string;
+          duration_seconds: number;
+          week_start: string;
+          week_end: string;
+          version: number;
+          published_at: string | null;
+          status: 'draft' | 'published' | 'archived';
+          script_version: string | null;
+          thumbnail_storage_path: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          parasha_key: string;
+          hebrew_title: string;
+          description?: string;
+          audio_storage_path: string;
+          duration_seconds: number;
+          week_start: string;
+          week_end: string;
+          version?: number;
+          published_at?: string | null;
+          status?: 'draft' | 'published' | 'archived';
+          script_version?: string | null;
+          thumbnail_storage_path?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          parasha_key?: string;
+          hebrew_title?: string;
+          description?: string;
+          audio_storage_path?: string;
+          duration_seconds?: number;
+          week_start?: string;
+          week_end?: string;
+          version?: number;
+          published_at?: string | null;
+          status?: 'draft' | 'published' | 'archived';
+          script_version?: string | null;
+          thumbnail_storage_path?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      list_active_minyan_reports: {
+        Args: {
+          p_synagogue_osm_keys: string[] | null;
+        };
+        Returns: {
+          id: string;
+          synagogue_osm_key: string;
+          current_attendance: number;
+          missing_count: number;
+          status: string;
+          created_at: string;
+          updated_at: string;
+          expires_at: string;
+          coming_count: number;
+        }[];
+      };
+      create_minyan_report: {
+        Args: {
+          p_synagogue_osm_key: string;
+          p_user_latitude: number;
+          p_user_longitude: number;
+          p_user_accuracy_meters: number;
+          p_current_attendance: number;
+          p_user_location_captured_at: string | null;
+        };
+        Returns: {
+          id: string;
+          synagogue_osm_key: string;
+          current_attendance: number;
+          missing_count: number;
+          status: string;
+          created_at: string;
+          updated_at: string;
+          expires_at: string;
+          coming_count: number;
+        };
+      };
+      update_minyan_report: {
+        Args: {
+          p_report_id: string;
+          p_user_latitude: number;
+          p_user_longitude: number;
+          p_user_accuracy_meters: number;
+          p_current_attendance: number;
+          p_user_location_captured_at: string | null;
+        };
+        Returns: {
+          id: string;
+          synagogue_osm_key: string;
+          current_attendance: number;
+          missing_count: number;
+          status: string;
+          created_at: string;
+          updated_at: string;
+          expires_at: string;
+          coming_count: number;
+        };
+      };
+      fulfill_minyan_report: {
+        Args: {
+          p_report_id: string;
+          p_user_latitude: number;
+          p_user_longitude: number;
+          p_user_accuracy_meters: number;
+          p_user_location_captured_at: string | null;
+        };
+        Returns: {
+          id: string;
+          synagogue_osm_key: string;
+          current_attendance: number;
+          missing_count: number;
+          status: string;
+          created_at: string;
+          updated_at: string;
+          expires_at: string;
+          coming_count: number;
+        };
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

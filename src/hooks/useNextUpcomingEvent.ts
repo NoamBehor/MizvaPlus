@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import { getNextUpcomingEvent } from '@/services/events';
+import { useMitzvahStore } from '@/store/mitzvahStore';
 import type { CalendarLocationInput } from '@/types/calendar';
 import type { UpcomingEvent } from '@/types/event';
 
@@ -19,6 +20,7 @@ export function useNextUpcomingEvent(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
+  const preferencesRevision = useMitzvahStore((state) => state.preferencesRevision);
 
   const load = useCallback(async () => {
     setIsLoading(true);
@@ -41,7 +43,7 @@ export function useNextUpcomingEvent(
         setIsLoading(false);
       }
     }
-  }, [location?.latitude, location?.longitude]);
+  }, [location?.latitude, location?.longitude, preferencesRevision]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -64,6 +66,23 @@ export function useNextUpcomingEvent(
       subscription.remove();
     };
   }, [load]);
+
+  useEffect(() => {
+    if (!event?.targetDate) {
+      return;
+    }
+
+    const targetMs = new Date(event.targetDate).getTime();
+    const delayMs = Math.max(0, targetMs - Date.now()) + 250;
+
+    const timer = setTimeout(() => {
+      void load();
+    }, delayMs);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [event?.id, event?.targetDate, load]);
 
   return { event, isLoading, error, refresh: load };
 }

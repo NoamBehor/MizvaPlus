@@ -10,6 +10,7 @@ export const HEBCAL_EVENT_TO_MITZVAH_IDS: Record<string, string[]> = {
   'sukkot': ['sukkot'],
   'erev sukkot': ['sukkot'],
   'shmini atzeret': ['shmini-atzeret'],
+  'shemini atzeret': ['shmini-atzeret'],
   'simchat torah': ['shmini-atzeret'],
   'chanukah': ['chanukah'],
   'hanukkah': ['chanukah'],
@@ -35,6 +36,9 @@ export const HEBCAL_EVENT_TO_MITZVAH_IDS: Record<string, string[]> = {
   'shiva asar btmuz': ['shivah-asar-btamuz'],
   '17 tammuz': ['shivah-asar-btamuz'],
   'shivah asar btamuz': ['shivah-asar-btamuz'],
+  'taanit bechorot': [],
+  "ta'anit bechorot": [],
+  'shushan purim': ['purim'],
 };
 
 export const FAST_MITZVAH_IDS = new Set([

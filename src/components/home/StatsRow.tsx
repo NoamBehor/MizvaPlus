@@ -10,7 +10,7 @@ interface StatsRowProps {
 
 export function StatsRow({ streakCount, xp }: StatsRowProps) {
   return (
-    <View className="mb-4 flex-row gap-3">
+    <View className="mb-4 flex-row gap-3" style={{ minWidth: 0 }}>
       <StreakCard streakCount={streakCount} />
       <XpCard xp={xp} />
     </View>

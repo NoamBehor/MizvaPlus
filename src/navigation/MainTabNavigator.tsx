@@ -7,20 +7,19 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 
 import { useCloudSync } from '@/hooks/useCloudSync';
+import { useMinyanProximityAlerts } from '@/hooks/useMinyanProximityAlerts';
 
 import type { MainTabParamList } from '@/navigation/types';
 
 import { colors } from '@/constants/colors';
 
-import { HomeScreen } from '@/screens/home/HomeScreen';
-
-import { MapScreen } from '@/screens/map/MapScreen';
-
-import { MyMitzvotScreen } from '@/screens/mitzvot/MyMitzvotScreen';
-
-import { ProfileScreen } from '@/screens/profile/ProfileScreen';
-
-import { TriviaScreen } from '@/screens/trivia/TriviaScreen';
+import {
+  HomeTabScreen,
+  MapTabScreen,
+  MyMitzvotTabScreen,
+  ProfileTabScreen,
+  TriviaTabScreen,
+} from '@/navigation/tabScreenWrappers';
 
 import { useUserStore } from '@/store/userStore';
 
@@ -75,8 +74,7 @@ export function MainTabNavigator() {
   const insets = useSafeAreaInsets();
 
   useCloudSync(userId);
-
-
+  useMinyanProximityAlerts();
 
   const tabBarPaddingTop = 8;
 
@@ -116,6 +114,10 @@ export function MainTabNavigator() {
 
           fontWeight: '600',
 
+          writingDirection: 'rtl',
+
+          textAlign: 'center',
+
         },
 
         tabBarIcon: ({ focused }) => (
@@ -123,6 +125,12 @@ export function MainTabNavigator() {
           <TabIcon label={route.name} focused={focused} />
 
         ),
+
+        lazy: true,
+
+        freezeOnBlur: true,
+
+        detachInactiveScreens: true,
 
       })}
 
@@ -132,7 +140,7 @@ export function MainTabNavigator() {
 
         name="Home"
 
-        component={HomeScreen}
+        component={HomeTabScreen}
 
         options={{ tabBarLabel: 'בית' }}
 
@@ -142,7 +150,7 @@ export function MainTabNavigator() {
 
         name="MyMitzvot"
 
-        component={MyMitzvotScreen}
+        component={MyMitzvotTabScreen}
 
         options={{ tabBarLabel: 'המצוות שלי' }}
 
@@ -152,7 +160,7 @@ export function MainTabNavigator() {
 
         name="Trivia"
 
-        component={TriviaScreen}
+        component={TriviaTabScreen}
 
         options={{ tabBarLabel: 'טריוויה' }}
 
@@ -162,7 +170,7 @@ export function MainTabNavigator() {
 
         name="Map"
 
-        component={MapScreen}
+        component={MapTabScreen}
 
         options={{ tabBarLabel: 'מפה' }}
 
@@ -172,7 +180,7 @@ export function MainTabNavigator() {
 
         name="Profile"
 
-        component={ProfileScreen}
+        component={ProfileTabScreen}
 
         options={{ tabBarLabel: 'פרופיל' }}
 

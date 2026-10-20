@@ -34,15 +34,20 @@ export interface HebrewDateParts {
   displayString: string;
 }
 
+export type FastVariant = 'major' | 'minor';
+
 export interface HebrewCalendarEvent {
   id: string;
   type: HebrewCalendarEventType;
   titleHebrew: string;
+  /** Raw Hebcal descriptor, e.g. "Fast begins" / "Fast ends". */
+  eventDesc?: string;
   dateKey: string;
   startDate?: string;
   endDate?: string;
   startTime?: string;
   endTime?: string;
+  fastVariant?: FastVariant;
   /** Hebcal event key used for mitzvah mapping */
   eventKey?: string;
   linkedMitzvahIds?: string[];

@@ -17,7 +17,10 @@ export const MITZVOT_SEED: Mitzvah[] = [
     title: 'שחרית',
     category: 'daily',
     description: 'תפילת שחרית – תפילת הבוקר',
+    explanationHebrew:
+      'תפילת שחרית פותחת את היום בעבודת ה\' — ברכות, שבח והודיה, ותפילת העמידה.',
     fullContentHebrew: MITZVAH_CONTENT.shacharit,
+    prayerId: 'shacharit',
     xpReward: 10,
     defaultTime: '07:00',
   },
@@ -44,7 +47,10 @@ export const MITZVOT_SEED: Mitzvah[] = [
     title: 'קריאת שמע',
     category: 'daily',
     description: 'קריאת שמע בבוקר ובערב',
+    explanationHebrew:
+      'קריאת שמע היא מצוות יסוד מהתורה — הזכרת אחדות ה\' וקבלת עול מלכות שמים בבוקר ובערב.',
     fullContentHebrew: MITZVAH_CONTENT['kriat-shema'],
+    prayerId: 'kriat-shema',
     xpReward: 10,
     defaultTime: '08:00',
   },

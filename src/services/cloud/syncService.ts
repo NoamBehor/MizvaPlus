@@ -26,7 +26,19 @@ import {
 } from '@/services/cloud/syncQueue';
 import type { CloudSnapshot } from '@/services/cloud/types';
 import { applyProfileFromSync } from '@/services/profile';
-import { isSupabaseConfigured } from '@/services/supabase';
+import {
+  ensureSessionReadyForSync,
+  logPgrst303Forensics,
+  type SyncLifecycleStage,
+} from '@/services/authSessionReady';
+import {
+  isDevAuthBypassActive,
+  logDevAuthBypassCloudSyncSkipped,
+} from '@/services/auth/devAuthBypass';
+import { getCurrentSession } from '@/services/auth';
+import { withSyncAuthGuard } from '@/services/authRefreshGate';
+import { decodeJwtTimingClaims } from '@/utils/jwtForensics';
+import { getSupabaseClient, isSupabaseConfigured } from '@/services/supabase';
 import { migratePersistedUuidRecords } from '@/services/cloud/localUuidMigration';
 import { useAppStore } from '@/store/appStore';
 import { useGamificationStore } from '@/store/gamificationStore';
@@ -43,6 +55,20 @@ import {
 } from '@/utils/storage';
 
 let syncInFlight: Promise<void> | null = null;
+
+async function shouldSkipDevBypassCloudSync(): Promise<boolean> {
+  if (!isDevAuthBypassActive()) {
+    return false;
+  }
+
+  const session = await getCurrentSession();
+  if (!session) {
+    logDevAuthBypassCloudSyncSkipped();
+    return true;
+  }
+
+  return false;
+}
 
 async function pullCloudSnapshot(userId: string): Promise<CloudSnapshot> {
   const [profile, preferences, completions, quizAttempts, badges, onboarding] =
@@ -164,6 +190,11 @@ export async function synchronizeUserData(userId: string): Promise<void> {
     return;
   }
 
+  if (await shouldSkipDevBypassCloudSync()) {
+    useSyncStore.getState().setStatus('idle');
+    return;
+  }
+
   if (syncInFlight) {
     await syncInFlight;
     return;
@@ -172,21 +203,52 @@ export async function synchronizeUserData(userId: string): Promise<void> {
   syncInFlight = (async () => {
     useSyncStore.getState().setStatus('syncing');
 
-    try {
-      const migrated = await migratePersistedUuidRecords(userId, {
-        completions: useMitzvahStore.getState().completions,
-        quizAttempts: useGamificationStore.getState().quizAttempts,
-      });
-      useMitzvahStore.setState({ completions: migrated.completions });
-      useGamificationStore.setState({ quizAttempts: migrated.quizAttempts });
+    let syncStage: SyncLifecycleStage = 'auth-guard';
+    let gateIatSec: number | null = null;
 
-      const snapshot = await pullCloudSnapshot(userId);
-      await applyMergedState(userId, snapshot);
-      await pushLocalState(userId);
-      await clearSyncPending(userId);
-      await clearSyncQueue(userId);
-      useSyncStore.getState().markSynced();
+    try {
+      await withSyncAuthGuard(async () => {
+        syncStage = 'session-ready';
+        const session = await ensureSessionReadyForSync();
+        if (!session) {
+          useSyncStore.getState().setStatus('idle');
+          return;
+        }
+
+        gateIatSec = decodeJwtTimingClaims(session.access_token)?.iat ?? null;
+
+        syncStage = 'uuid-migration';
+        const migrated = await migratePersistedUuidRecords(userId, {
+          completions: useMitzvahStore.getState().completions,
+          quizAttempts: useGamificationStore.getState().quizAttempts,
+        });
+        useMitzvahStore.setState({ completions: migrated.completions });
+        useGamificationStore.setState({ quizAttempts: migrated.quizAttempts });
+
+        syncStage = 'pull';
+        const snapshot = await pullCloudSnapshot(userId);
+        syncStage = 'merge';
+        await applyMergedState(userId, snapshot);
+        syncStage = 'push';
+        await pushLocalState(userId);
+        syncStage = 'finalize';
+        await clearSyncPending(userId);
+        await clearSyncQueue(userId);
+        useSyncStore.getState().markSynced();
+      });
     } catch (error) {
+      const failureToken = (
+        await getSupabaseClient().auth.getSession()
+      ).data.session?.access_token;
+      await logPgrst303Forensics(error, failureToken, syncStage);
+      if (__DEV__ && gateIatSec !== null && failureToken) {
+        const failureIatSec = decodeJwtTimingClaims(failureToken)?.iat ?? null;
+        if (failureIatSec !== null && failureIatSec !== gateIatSec) {
+          console.warn(
+            `[jwt-forensics] token used for request differs from gate: gateIatSec=${gateIatSec} failureIatSec=${failureIatSec} syncStage=${syncStage}`,
+          );
+        }
+      }
       console.error('Cloud sync failed:', error);
       useSyncStore.getState().setStatus('error');
       await enqueueSync(userId);
@@ -201,6 +263,10 @@ export async function synchronizeUserData(userId: string): Promise<void> {
 
 export async function processSyncQueue(userId: string): Promise<void> {
   if (!isSupabaseConfigured()) {
+    return;
+  }
+
+  if (await shouldSkipDevBypassCloudSync()) {
     return;
   }
 
@@ -220,6 +286,10 @@ export async function processSyncQueue(userId: string): Promise<void> {
 
 export async function requestCloudSync(userId: string): Promise<void> {
   if (!isSupabaseConfigured()) {
+    return;
+  }
+
+  if (await shouldSkipDevBypassCloudSync()) {
     return;
   }
 

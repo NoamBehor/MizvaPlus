@@ -1,4 +1,8 @@
+import { getHolidayKeyForMitzvahId } from '@/constants/eventDescriptors';
 import type { Mitzvah, MitzvahCategory } from '@/types/mitzvah';
+import { MITZVAH_PRAYERS, type MitzvahPrayerContent } from '@/constants/mitzvahPrayers';
+
+export { getHolidayKeyForMitzvahId };
 
 export const MITZVAH_CATEGORY_DETAIL_LABELS: Record<MitzvahCategory, string> = {
   daily: 'מצווה יומית',
@@ -46,4 +50,13 @@ export function getMitzvahIcon(mitzvahId: string, category: MitzvahCategory): st
 
 export function getMitzvahContentText(mitzvah: Mitzvah): string {
   return mitzvah.fullContentHebrew;
+}
+
+export function getMitzvahExplanation(mitzvah: Mitzvah): string {
+  return mitzvah.explanationHebrew ?? mitzvah.description;
+}
+
+export function getMitzvahPrayer(mitzvah: Mitzvah): MitzvahPrayerContent | null {
+  const prayerKey = mitzvah.prayerId ?? mitzvah.id;
+  return MITZVAH_PRAYERS[prayerKey] ?? null;
 }

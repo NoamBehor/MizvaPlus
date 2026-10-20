@@ -24,6 +24,14 @@ export const STORAGE_KEYS = {
   userProfile: '@mitzvahapp/user_profile',
   quizAttempts: '@mitzvahapp/quiz_attempts',
   badges: '@mitzvahapp/badges',
+  prayerReaderFontSize: '@mitzvahapp/prayer_reader_font_size',
+  prayerReaderPosition: '@mitzvahapp/prayer_reader_position',
+  prayerReaderNusach: '@mitzvahapp/prayer_reader_nusach',
+  podcastProgressPrefix: '@mitzvahapp/podcast_progress',
+  podcastPlaybackSpeed: '@mitzvahapp/podcast_playback_speed',
+  podcastDownloads: '@mitzvahapp/podcast_downloads',
+  minyanProximityPreferences: '@mitzvahapp/minyan_proximity_preferences',
+  minyanProximityNotificationState: '@mitzvahapp/minyan_proximity_notification_state',
 } as const;
 
 export function onboardingStorageKey(userId: string): string {

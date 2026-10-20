@@ -5,6 +5,18 @@ import { useEffect } from 'react';
 import { bootstrapAuthFromInitialDeepLink } from '@/services/authBootstrap';
 
 import { getCurrentSession } from '@/services/auth';
+import { ensureDevAnonymousSession } from '@/services/auth/devAnonymousAuth';
+import {
+  isDevAuthBypassActive,
+  logDevAnonymousAuthBootstrap,
+  logDevAuthBypassBootstrap,
+  logDevAuthBypassCloudSyncSkipped,
+} from '@/services/auth/devAuthBypass';
+import {
+  bootstrapDevPreview,
+  shouldBootstrapDevPreview,
+} from '@/services/devPreview/devPreviewProvider';
+import { DEV_PREVIEW_LOCAL_USER_KEY } from '@/services/devPreview/devPreviewData';
 
 import { processSyncQueue, synchronizeUserData } from '@/services/cloud/syncService';
 
@@ -109,66 +121,59 @@ export function useAppInitialization(): InitializationResult {
 
 
         const session =
-
-          deepLinkResult.session ?? (await getCurrentSession());
-
-
+          deepLinkResult.session ??
+          (await getCurrentSession()) ??
+          (isDevAuthBypassActive() ? await ensureDevAnonymousSession() : null);
 
         if (session?.user) {
-
           let profile = await getCurrentProfile(session.user.id);
 
-
-
           if (!profile) {
+            const displayName = session.user.is_anonymous
+              ? 'משתמש פיתוח'
+              : session.user.user_metadata?.display_name ??
+                session.user.email?.split('@')[0] ??
+                'משתמש';
 
             profile = await createProfile(
-
               session.user.id,
-
               session.user.email ?? '',
-
-              session.user.user_metadata?.display_name ??
-
-                session.user.email?.split('@')[0] ??
-
-                'משתמש',
-
+              displayName,
             );
-
           }
 
-
-
           setUser(profile);
-
           setAuthenticated(true);
 
+          if (isDevAuthBypassActive() && session.user.is_anonymous) {
+            logDevAnonymousAuthBootstrap(session.user.id);
+          }
+
           await initializeApp(session.user.id);
-
           await initializeMitzvot(session.user.id);
-
           await initializeGamification(session.user.id);
 
-
-
           try {
-
             await synchronizeUserData(session.user.id);
-
           } catch {
-
             await processSyncQueue(session.user.id);
-
           }
 
           return;
-
         }
 
-
-
         setAuthenticated(false);
+
+        if (isDevAuthBypassActive()) {
+          logDevAuthBypassBootstrap();
+          logDevAuthBypassCloudSyncSkipped();
+        }
+
+        if (shouldBootstrapDevPreview()) {
+          await bootstrapDevPreview();
+          await initializeApp(DEV_PREVIEW_LOCAL_USER_KEY);
+          return;
+        }
 
         await initializeApp();
 

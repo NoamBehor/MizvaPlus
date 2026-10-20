@@ -968,6 +968,88 @@ async function runPhase96CalendarTests() {
   const shabbatForAug11 = getShabbatDateKeyForWeek('2026-08-11');
   assertEqual(shabbatForAug11, '2026-08-15', 'P9.6: Shabbat date key for midweek');
 
+  function isParashaEvent(ev) {
+    const desc = ev.getDesc().toLowerCase();
+    return (ev.getFlags() & flags.PARSHA_HASHAVUA) !== 0 || desc.includes('parashat');
+  }
+
+  function findWeeklyParashaForDate(dateKey, rawEvents) {
+    const shabbatDateKey = getShabbatDateKeyForWeek(dateKey);
+    const parashaEvent = rawEvents.find((ev) => {
+      if (!isParashaEvent(ev)) {
+        return false;
+      }
+      return gregorianDateKeyFromGreg(ev.getDate().greg()) === shabbatDateKey;
+    });
+    return parashaEvent ?? null;
+  }
+
+  function buildWeeklyParashaFixed(dateKey, allEvents) {
+    const shabbatDateKey = getShabbatDateKeyForWeek(dateKey);
+    const shabbatEvents = allEvents.filter(
+      (ev) => gregorianDateKeyFromGreg(ev.getDate().greg()) === shabbatDateKey,
+    );
+    return findWeeklyParashaForDate(dateKey, shabbatEvents);
+  }
+
+  function buildWeeklyParashaBroken(dateKey, allEvents) {
+    const dayEvents = allEvents.filter(
+      (ev) => gregorianDateKeyFromGreg(ev.getDate().greg()) === dateKey,
+    );
+    return findWeeklyParashaForDate(dateKey, dayEvents);
+  }
+
+  const sampleParasha = jerusalemEvents.find(
+    (ev) => (ev.getFlags() & flags.PARSHA_HASHAVUA) !== 0,
+  );
+  assertTrue(Boolean(sampleParasha), 'P9.6: sample parasha event available for weekday tests');
+
+  const shabbatKey = gregorianDateKeyFromGreg(sampleParasha.getDate().greg());
+  const shabbatDate = sampleParasha.getDate().greg();
+  const sundayDate = new Date(shabbatDate);
+  sundayDate.setDate(sundayDate.getDate() - 6);
+  const fridayDate = new Date(shabbatDate);
+  fridayDate.setDate(fridayDate.getDate() - 1);
+
+  const sundayKey = gregorianDateKeyFromGreg(sundayDate);
+  const fridayKey = gregorianDateKeyFromGreg(fridayDate);
+  const saturdayKey = shabbatKey;
+
+  assertEqual(getShabbatDateKeyForWeek(sundayKey), saturdayKey, 'P9.6: Sunday targets upcoming Shabbat');
+  assertEqual(getShabbatDateKeyForWeek(fridayKey), saturdayKey, 'P9.6: Friday targets same-week Shabbat');
+  assertEqual(getShabbatDateKeyForWeek(saturdayKey), saturdayKey, 'P9.6: Saturday targets current Shabbat');
+
+  const sundayParashaBroken = buildWeeklyParashaBroken(sundayKey, jerusalemEvents);
+  const sundayParashaFixed = buildWeeklyParashaFixed(sundayKey, jerusalemEvents);
+  assertTrue(sundayParashaBroken === null, 'P9.6: weekday-only event window misses parasha (root cause)');
+  assertTrue(Boolean(sundayParashaFixed), 'P9.6: Shabbat event window resolves Sunday parasha');
+
+  const fridayParasha = buildWeeklyParashaFixed(fridayKey, jerusalemEvents);
+  const saturdayParasha = buildWeeklyParashaFixed(saturdayKey, jerusalemEvents);
+  assertTrue(Boolean(fridayParasha), 'P9.6: Friday parasha resolved');
+  assertTrue(Boolean(saturdayParasha), 'P9.6: Saturday parasha resolved');
+  assertEqual(
+    fridayParasha.basename(),
+    saturdayParasha.basename(),
+    'P9.6: Friday and Saturday share the same weekly parasha',
+  );
+
+  const israelSundayKey = getCalendarDateKey(
+    new Date(`${sundayKey}T21:30:00Z`),
+  );
+  assertEqual(israelSundayKey, sundayKey, 'P9.6: Israel TZ Sunday boundary for parasha date key');
+  const israelParasha = buildWeeklyParashaFixed(israelSundayKey, jerusalemEvents);
+  assertTrue(Boolean(israelParasha), 'P9.6: Israel TZ boundary still resolves parasha');
+
+  const hebcalProviderSrc = readFileSync(
+    join(root, 'src/services/calendar/hebcalProvider.ts'),
+    'utf8',
+  );
+  assertTrue(
+    hebcalProviderSrc.includes('getShabbatDateKeyForWeek') &&
+      hebcalProviderSrc.includes('shabbatDateKey'),
+    'P9.6: hebcalProvider loads parasha events for Shabbat date',
+  );
   const locA = { latitude: 32.794, longitude: 34.9896 };
   const locB = { latitude: 31.2518, longitude: 34.7913 };
   assertTrue(
@@ -985,10 +1067,6 @@ async function runPhase96CalendarTests() {
   const calendarKey = getCalendarDateKey(new Date('2026-08-11T21:30:00Z'));
   assertEqual(activityKey, calendarKey, 'P9.6: Activity and calendar keys align in Israel TZ');
 
-  const hebcalProviderSrc = readFileSync(
-    join(root, 'src/services/calendar/hebcalProvider.ts'),
-    'utf8',
-  );
   assertTrue(
     hebcalProviderSrc.includes('weeklyParasha') &&
       hebcalProviderSrc.includes('locationSource') &&

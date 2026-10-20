@@ -24,6 +24,7 @@ import {
   enableNotifications,
   syncNotificationSchedule,
 } from '@/services/notificationScheduler';
+import type { NotificationPermissionStatus } from '@/services/notifications';
 
 import type {
 
@@ -57,6 +58,8 @@ import {
 } from '@/utils/storage';
 
 import { migrateCompletions } from '@/utils/uuid';
+import { logDiagnosticEvent } from '@/services/diagnostics/diagnosticLogger';
+import { useDiagnosticsStore } from '@/store/diagnosticsStore';
 
 
 
@@ -83,6 +86,8 @@ interface MitzvahState {
   notificationIds: Record<string, string>;
 
   permissionDeniedMessage: string | null;
+
+  osNotificationPermission: NotificationPermissionStatus | null;
 
   initialize: (userId: string) => Promise<void>;
 
@@ -113,6 +118,15 @@ interface MitzvahState {
   syncNotifications: (userId: string) => Promise<void>;
 
   clearPermissionMessage: () => void;
+
+  setOsNotificationPermission: (status: NotificationPermissionStatus) => void;
+
+  preferencesRevision: number;
+
+  saveTrackedSelections: (
+    userId: string,
+    enabledMitzvahIds: string[],
+  ) => Promise<'saved' | 'noop'>;
 
   reset: () => void;
 
@@ -170,7 +184,9 @@ export const useMitzvahStore = create<MitzvahState>((set, get) => ({
 
   permissionDeniedMessage: null,
 
+  osNotificationPermission: null,
 
+  preferencesRevision: 0,
 
   initialize: async (userId: string) => {
 
@@ -648,6 +664,149 @@ export const useMitzvahStore = create<MitzvahState>((set, get) => ({
 
 
 
+  setOsNotificationPermission: (status) => {
+
+    set({ osNotificationPermission: status });
+
+  },
+
+
+
+  saveTrackedSelections: async (userId, enabledMitzvahIds) => {
+
+    const { preferences, mitzvot } = get();
+
+    const nextEnabled = new Set(enabledMitzvahIds);
+
+    let changed = false;
+
+    const updatedPreferences = { ...preferences };
+
+
+
+    for (const mitzvah of mitzvot) {
+
+      const preference = preferences[mitzvah.id];
+
+      if (!preference) {
+
+        continue;
+
+      }
+
+
+
+      const shouldEnable = nextEnabled.has(mitzvah.id);
+
+      if (preference.enabled === shouldEnable) {
+
+        continue;
+
+      }
+
+
+
+      updatedPreferences[mitzvah.id] = {
+
+        ...preference,
+
+        enabled: shouldEnable,
+
+        reminderEnabled: shouldEnable ? preference.reminderEnabled : false,
+
+        updatedAt: new Date().toISOString(),
+
+      };
+
+      changed = true;
+
+    }
+
+
+
+    const selectedIds = enabledMitzvahIds;
+    const revision = get().preferencesRevision;
+
+    if (!changed) {
+      if (__DEV__) {
+        useDiagnosticsStore.getState().setMyMitzvotSnapshot({
+          selectedMitzvahIds: selectedIds,
+          selectionCount: selectedIds.length,
+          preferencesRevision: revision,
+          lastSavedRevision: revision,
+          lastSaveStatus: 'noop',
+          lastSaveTimestamp: Date.now(),
+          lastSaveWasNoop: true,
+          notificationReconciliationStatus: 'skipped_noop',
+          homeRefreshTriggered: false,
+        });
+        logDiagnosticEvent('MITZVOT', 'save_tracked_selections', 'info', {
+          status: 'noop',
+        });
+      }
+      return 'noop';
+    }
+
+
+
+    set({
+
+      preferences: updatedPreferences,
+
+      preferencesRevision: get().preferencesRevision + 1,
+
+    });
+
+    const nextRevision = get().preferencesRevision;
+
+
+
+    await setJson(preferencesStorageKey(userId), updatedPreferences);
+
+    await prepareForRemoteSync(userId, updatedPreferences);
+
+    void requestCloudSync(userId);
+
+
+
+    const notificationIds = await reconcileUserNotifications(
+
+      userId,
+
+      updatedPreferences,
+
+      mitzvot,
+
+    );
+
+    set({ notificationIds });
+
+    if (__DEV__) {
+      useDiagnosticsStore.getState().setMyMitzvotSnapshot({
+        selectedMitzvahIds: selectedIds,
+        selectionCount: selectedIds.length,
+        preferencesRevision: nextRevision,
+        lastSavedRevision: nextRevision,
+        lastSaveStatus: 'saved',
+        lastSaveTimestamp: Date.now(),
+        lastSaveWasNoop: false,
+        notificationReconciliationStatus: 'reconciled',
+        homeRefreshTriggered: true,
+      });
+      logDiagnosticEvent('MITZVOT', 'save_tracked_selections', 'info', {
+        status: 'saved',
+        revision: nextRevision,
+      });
+    }
+
+
+
+    return 'saved';
+
+  },
+
+
+
   reset: () => {
 
     set({
@@ -659,6 +818,10 @@ export const useMitzvahStore = create<MitzvahState>((set, get) => ({
       notificationIds: {},
 
       permissionDeniedMessage: null,
+
+      osNotificationPermission: null,
+
+      preferencesRevision: 0,
 
     });
 

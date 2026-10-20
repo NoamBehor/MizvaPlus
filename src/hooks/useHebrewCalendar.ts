@@ -18,22 +18,27 @@ export function useHebrewCalendar(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(true);
+  const dayInfoRef = useRef<CalendarDayInfo | null>(null);
 
   const load = useCallback(async () => {
     setIsLoading(true);
-    setError(null);
 
     try {
       const info = await calendarService.getTodayInfo(location);
       if (isMountedRef.current) {
+        dayInfoRef.current = info;
         setDayInfo(info);
-        if (info.freshness === 'unavailable') {
+        if (info.freshness === 'unavailable' && !info.weeklyParasha) {
           setError('לא ניתן לטעון את לוח השנה העברי כרגע.');
+        } else {
+          setError(null);
         }
       }
     } catch {
       if (isMountedRef.current) {
-        setError('לא ניתן לטעון את לוח השנה העברי כרגע.');
+        if (!dayInfoRef.current?.weeklyParasha) {
+          setError('לא ניתן לטעון את לוח השנה העברי כרגע.');
+        }
       }
     } finally {
       if (isMountedRef.current) {

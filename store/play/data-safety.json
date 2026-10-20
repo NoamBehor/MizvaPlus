@@ -1,0 +1,79 @@
+{
+  "collectsData": true,
+  "encryptedInTransit": true,
+  "usersCanRequestDeletion": true,
+  "deletionUrlEnv": "EXPO_PUBLIC_ACCOUNT_DELETION_URL",
+  "dataSold": false,
+  "ads": false,
+  "data": [
+    {
+      "type": "email",
+      "collected": true,
+      "required": true,
+      "purpose": "account management",
+      "shared": false,
+      "ephemeral": false
+    },
+    {
+      "type": "name",
+      "collected": true,
+      "required": false,
+      "purpose": "account management",
+      "shared": false,
+      "ephemeral": false
+    },
+    {
+      "type": "precise_location",
+      "collected": true,
+      "purpose": "app functionality",
+      "sharedWith": ["Google Maps", "OpenStreetMap Overpass"],
+      "stored": true,
+      "note": "Collected only while the app is in use. Coordinates are stored on the user's minyan report."
+    },
+    {
+      "type": "approximate_location",
+      "collected": true,
+      "purpose": "app functionality",
+      "sharedWith": ["Google Maps", "OpenStreetMap Overpass"],
+      "stored": true
+    },
+    {
+      "type": "app_interactions",
+      "collected": true,
+      "purpose": "app functionality",
+      "shared": false
+    }
+  ],
+  "notCollected": [
+    "crash logs",
+    "diagnostics",
+    "device IDs",
+    "advertising ID",
+    "photos",
+    "contacts",
+    "SMS"
+  ],
+  "contentRating": {
+    "violence": false,
+    "fear": false,
+    "sexualContent": false,
+    "language": false,
+    "controlledSubstances": false,
+    "gambling": false,
+    "unrestrictedWebView": false,
+    "usersInteract": true,
+    "userToUserTextChat": false,
+    "sharesExactLocationWithOtherUsers": false,
+    "digitalPurchases": false
+  },
+  "declarations": {
+    "news": false,
+    "covidContact": false,
+    "government": false,
+    "financialFeatures": false,
+    "ads": false,
+    "health": false,
+    "designedForFamilies": false,
+    "targetAge": "18+"
+  }
+}

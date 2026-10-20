@@ -14,6 +14,52 @@
  */
 const googleMapsAndroidApiKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY ?? '';
 
+function loadLocalEnvFile() {
+  try {
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const envPath = path.join(__dirname, '.env');
+    if (!fs.existsSync(envPath)) {
+      return {};
+    }
+
+    const loaded = {};
+    for (const line of fs.readFileSync(envPath, 'utf8').split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) {
+        continue;
+      }
+      const eq = trimmed.indexOf('=');
+      if (eq === -1) {
+        continue;
+      }
+      const key = trimmed.slice(0, eq).trim();
+      let value = trimmed.slice(eq + 1).trim();
+      if (
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))
+      ) {
+        value = value.slice(1, -1);
+      }
+      loaded[key] = value;
+    }
+    return loaded;
+  } catch {
+    return {};
+  }
+}
+
+const localEnv = loadLocalEnvFile();
+const isProductionBuild = process.env.EAS_BUILD_PROFILE === 'production';
+const devTestEmailRaw = process.env.DEV_TEST_EMAIL ?? localEnv.DEV_TEST_EMAIL ?? '';
+const devTestPasswordRaw =
+  process.env.DEV_TEST_PASSWORD ?? localEnv.DEV_TEST_PASSWORD ?? '';
+const devTestEmail = isProductionBuild ? '' : devTestEmailRaw;
+const devTestPassword = isProductionBuild ? '' : devTestPasswordRaw;
+const devTestAuthConfigured = Boolean(devTestEmail && devTestPassword);
+const playSupportEmail =
+  process.env.PLAY_SUPPORT_EMAIL ?? localEnv.PLAY_SUPPORT_EMAIL ?? '';
+
 /** @type {import('expo/config').ExpoConfig} */
 module.exports = {
   expo: {
@@ -45,14 +91,40 @@ module.exports = {
       package: 'com.mitzvahapp.app',
       predictiveBackGestureEnabled: false,
       permissions: ['ACCESS_COARSE_LOCATION', 'ACCESS_FINE_LOCATION'],
+      blockedPermissions: [
+        'android.permission.ACCESS_BACKGROUND_LOCATION',
+        'android.permission.RECORD_AUDIO',
+        'android.permission.FOREGROUND_SERVICE_LOCATION',
+        'com.google.android.gms.permission.AD_ID',
+        'android.permission.SYSTEM_ALERT_WINDOW',
+      ],
     },
     web: {
       favicon: './assets/favicon.png',
     },
     plugins: [
+      'expo-asset',
+      'expo-audio',
       'expo-notifications',
       '@react-native-community/datetimepicker',
-      'expo-splash-screen',
+      [
+        'expo-splash-screen',
+        {
+          image: './assets/splash-icon.png',
+          resizeMode: 'contain',
+          backgroundColor: '#FAF8F5',
+        },
+      ],
+      [
+        'expo-build-properties',
+        {
+          android: {
+            compileSdkVersion: 36,
+            targetSdkVersion: 36,
+            buildToolsVersion: '36.0.0',
+          },
+        },
+      ],
       [
         'expo-location',
         {
@@ -71,6 +143,14 @@ module.exports = {
       supportsRTL: true,
       /** False until GOOGLE_MAPS_ANDROID_API_KEY is provided at build time. */
       googleMapsAndroidConfigured: Boolean(googleMapsAndroidApiKey),
+      /**
+       * Development-only Supabase test credentials (from .env, never EXPO_PUBLIC_*).
+       * Read at runtime only when __DEV__ is true.
+       */
+      devTestAuthConfigured,
+      devTestEmail,
+      devTestPassword,
+      playSupportEmail,
       eas: {
         projectId: "2d42486a-b211-4ac6-aa45-67ecdee229e1",
       },

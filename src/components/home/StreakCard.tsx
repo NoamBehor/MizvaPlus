@@ -1,24 +1,92 @@
 import { Text, View } from 'react-native';
 
-import { Card } from '@/components/common/Card';
 import { colors } from '@/constants/colors';
-import { typography } from '@/constants/theme';
+import { homeStatCard } from '@/constants/homeTheme';
+import { spacing, typography } from '@/constants/theme';
 
 interface StreakCardProps {
   streakCount: number;
 }
 
 export function StreakCard({ streakCount }: StreakCardProps) {
+  const isActive = streakCount > 0;
+
   return (
-    <Card className="flex-1">
-      <Text style={typography.caption}>רצף יומי</Text>
-      <View className="mt-1 flex-row items-center gap-1">
-        <Text style={{ fontSize: 20 }}>🔥</Text>
-        <Text style={typography.subtitle}>{streakCount}</Text>
+    <View
+      className="flex-1"
+      style={[
+        homeStatCard.shadow,
+        {
+          backgroundColor: homeStatCard.backgroundAlt,
+          borderRadius: homeStatCard.radius,
+          padding: spacing.md,
+          borderWidth: 1,
+          borderColor: homeStatCard.border,
+          minWidth: 0,
+        },
+      ]}
+    >
+      <View
+        className="flex-row-reverse"
+        style={{ alignItems: 'flex-start', gap: spacing.sm }}
+      >
+        <View
+          style={{
+            width: 32,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 22,
+              opacity: isActive ? 1 : 0.45,
+            }}
+            accessibilityLabel="רצף יומי"
+          >
+            🔥
+          </Text>
+        </View>
+
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={[typography.caption, { color: homeStatCard.mutedText }]}>
+            רצף יומי
+          </Text>
+
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.75}
+            style={[
+              typography.subtitle,
+              {
+                color: colors.primary,
+                marginTop: spacing.xs,
+                textAlign: 'right',
+                writingDirection: 'rtl',
+                flexShrink: 0,
+              },
+            ]}
+          >
+            {streakCount}
+          </Text>
+
+          <Text
+            style={[
+              typography.caption,
+              {
+                color: homeStatCard.mutedText,
+                marginTop: spacing.xs,
+                textAlign: 'right',
+                writingDirection: 'rtl',
+              },
+            ]}
+          >
+            {streakCount === 1 ? 'יום' : 'ימים'}
+          </Text>
+        </View>
       </View>
-      <Text style={[typography.bodySmall, { color: colors.muted }]}>
-        {streakCount === 1 ? 'יום' : 'ימים'}
-      </Text>
-    </Card>
+    </View>
   );
 }

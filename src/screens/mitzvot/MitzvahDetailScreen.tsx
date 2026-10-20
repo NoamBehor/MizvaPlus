@@ -1,28 +1,48 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useFocusEffect } from '@react-navigation/native';
 
-import { MitzvahAudioControls } from '@/components/mitzvah/MitzvahAudioControls';
 import { ReminderTimePicker } from '@/components/common/ReminderTimePicker';
 import { ScreenContainer } from '@/components/common/ScreenContainer';
 import { ToggleRow } from '@/components/common/ToggleRow';
 import { colors } from '@/constants/colors';
-import { typography } from '@/constants/theme';
+import { spacing, typography } from '@/constants/theme';
 import type { RootStackParamList } from '@/navigation/types';
+import {
+  navigateToHomeHolidayGuide,
+} from '@/navigation/navigationRef';
+import { calendarService } from '@/services/calendar';
 import { getMitzvahById } from '@/services/mitzvot';
-import { stopSpeaking } from '@/services/audio';
+import { getHolidayGuide } from '@/services/holidayGuideService';
+import { resolveMitzvahFastContext } from '@/services/mitzvahFastContext';
 import { useMitzvahStore } from '@/store/mitzvahStore';
 import { useUserStore } from '@/store/userStore';
 import {
+  getHolidayKeyForMitzvahId,
   getMitzvahCategoryLabel,
   getMitzvahContentText,
+  getMitzvahExplanation,
   getMitzvahIcon,
 } from '@/utils/mitzvah';
+import {
+  canOpenPrayerReader,
+  getAvailableNusachim,
+  getPrayerCatalogItemForMitzvah,
+  getPrayerIdForMitzvah,
+} from '@/services/texts/prayerContentService';
+import {
+  canOpenRitualGuide,
+  getAvailableRitualGuideNusachim,
+  getRitualGuideCatalogItemForMitzvah,
+  getRitualGuideIdForMitzvah,
+} from '@/services/texts/ritualContentService';
+import { getPreferredNusach } from '@/services/texts/prayerReaderPreferences';
 import { formatReminderTimeForDisplay } from '@/utils/reminderTimezone';
 import { useHebrewCalendar } from '@/hooks/useHebrewCalendar';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { isCalendarMitzvahActiveToday } from '@/services/calendarMitzvot';
+import type { HebrewCalendarEvent } from '@/types/calendar';
+import { FAST_MITZVAH_IDS } from '@/constants/calendarMitzvahMap';
 
 type MitzvahDetailScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -64,23 +84,31 @@ export function MitzvahDetailScreen({
     null,
   );
   const [isCompleting, setIsCompleting] = useState(false);
+  const [preferredNusach, setPreferredNusachState] = useState<
+    'edot_hamizrach' | 'ashkenaz' | 'sefard'
+  >('edot_hamizrach');
+  const [calendarEvents, setCalendarEvents] = useState<HebrewCalendarEvent[]>(
+    [],
+  );
 
   const completed =
     user ? isCompletedToday(user.id, mitzvahId) : false;
 
-  useFocusEffect(
-    useCallback(() => {
-      return () => {
-        stopSpeaking();
-      };
-    }, []),
-  );
+  useEffect(() => {
+    void getPreferredNusach().then(setPreferredNusachState);
+  }, []);
 
   useEffect(() => {
-    return () => {
-      stopSpeaking();
-    };
-  }, []);
+    void calendarService.getUpcomingEvents(45, locationInput).then(setCalendarEvents);
+  }, [locationInput?.latitude, locationInput?.longitude]);
+
+  const fastContext = useMemo(
+    () =>
+      mitzvah && FAST_MITZVAH_IDS.has(mitzvah.id)
+        ? resolveMitzvahFastContext(mitzvah.id, calendarEvents)
+        : null,
+    [calendarEvents, mitzvah],
+  );
 
   const handleComplete = async () => {
     if (!user || completed || isCompleting) {
@@ -120,8 +148,48 @@ export function MitzvahDetailScreen({
 
   const icon = getMitzvahIcon(mitzvah.id, mitzvah.category);
   const categoryLabel = getMitzvahCategoryLabel(mitzvah.category);
-  const contentText = getMitzvahContentText(mitzvah);
-
+  const explanation = getMitzvahExplanation(mitzvah);
+  const fullContent = getMitzvahContentText(mitzvah);
+  const showDetailedContent =
+    fullContent.trim().length > 0 && fullContent.trim() !== explanation.trim();
+  const holidayKey = getHolidayKeyForMitzvahId(mitzvah.id);
+  const holidayGuide = holidayKey ? getHolidayGuide(holidayKey) : null;
+  const holidayLinkLabel = holidayGuide
+    ? `למידע המלא על ${holidayGuide.titleHebrew}`
+    : null;
+  const holidayContextLabel = holidayGuide
+    ? mitzvah.category === 'fast'
+      ? `קשור למדריך ${holidayGuide.titleHebrew}`
+      : `חלק ממערכת מצוות ${holidayGuide.titleHebrew}`
+    : null;
+  const prayerCatalogItem = getPrayerCatalogItemForMitzvah(mitzvah.id);
+  const localPrayerId = getPrayerIdForMitzvah(mitzvah.id);
+  const localRitualGuideId = getRitualGuideIdForMitzvah(mitzvah.id);
+  const ritualGuideCatalogItem = getRitualGuideCatalogItemForMitzvah(mitzvah.id);
+  const canOpenReader = localPrayerId ? canOpenPrayerReader(localPrayerId) : false;
+  const canOpenGuide = localRitualGuideId
+    ? canOpenRitualGuide(localRitualGuideId)
+    : false;
+  const isPartialPrayer = prayerCatalogItem?.availability === 'partial';
+  const isPendingPrayer = prayerCatalogItem?.availability === 'pending';
+  const readerCtaLabel = isPartialPrayer
+    ? 'פתח את סדר התפילה'
+    : 'פתח את סדר התפילה המלא';
+  const ritualGuideCtaLabel = 'פתח סדר הנחת תפילין וברכות';
+  const readerNusach =
+    localPrayerId && getAvailableNusachim(localPrayerId).includes(preferredNusach)
+      ? preferredNusach
+      : localPrayerId
+        ? getAvailableNusachim(localPrayerId)[0] ?? 'edot_hamizrach'
+        : 'edot_hamizrach';
+  const ritualGuideNusach =
+    localRitualGuideId &&
+    getAvailableRitualGuideNusachim(localRitualGuideId).includes(preferredNusach)
+      ? preferredNusach
+      : localRitualGuideId
+        ? getAvailableRitualGuideNusachim(localRitualGuideId)[0] ??
+          'edot_hamizrach'
+        : 'edot_hamizrach';
   const isActiveToday = dayInfo
     ? isCalendarMitzvahActiveToday(mitzvah, dayInfo)
     : mitzvah.category === 'daily';
@@ -149,9 +217,11 @@ export function MitzvahDetailScreen({
           <Text style={typography.caption}>{categoryLabel}</Text>
         </View>
 
-        <View className="flex-row items-center gap-3">
-          <Text style={typography.hero}>{mitzvah.title}</Text>
-          <Text style={{ fontSize: 36 }}>{icon}</Text>
+        <View className="flex-row-reverse items-center gap-3">
+          <Text style={{ fontSize: 36 }} accessibilityElementsHidden>
+            {icon}
+          </Text>
+          <Text style={[typography.hero, { flex: 1 }]}>{mitzvah.title}</Text>
         </View>
 
         <Text style={[typography.bodySmall, { marginTop: 8 }]}>
@@ -177,23 +247,173 @@ export function MitzvahDetailScreen({
       />
 
       <View className="mb-6">
-        <Text style={[typography.subtitle, { marginBottom: 12 }]}>
-          📖 תוכן
+        <Text style={[typography.subtitle, { marginBottom: spacing.md }]}>
+          מהי המצווה?
         </Text>
-        <Text style={typography.body}>{contentText}</Text>
+        <Text style={[typography.body, { lineHeight: 26 }]}>{explanation}</Text>
       </View>
 
-      <View
-        className="mb-6"
-        style={{ height: 1, backgroundColor: colors.border }}
-      />
+      {showDetailedContent ? (
+        <View className="mb-6">
+          <Text style={[typography.subtitle, { marginBottom: spacing.md }]}>
+            הסבר מפורט
+          </Text>
+          <Text style={[typography.body, { lineHeight: 26 }]}>{fullContent}</Text>
+        </View>
+      ) : null}
 
-      <View className="mb-6">
-        <Text style={[typography.subtitle, { marginBottom: 12 }]}>
-          🔊 השמעה
-        </Text>
-        <MitzvahAudioControls content={contentText} />
-      </View>
+      {fastContext ? (
+        <View
+          className="mb-6 rounded-2xl p-4"
+          style={{ backgroundColor: '#F4F1EA' }}
+        >
+          <Text style={[typography.subtitle, { marginBottom: spacing.sm }]}>
+            {fastContext.isActive ? 'הצום הפעיל' : 'הצום הקרוב'}
+          </Text>
+          <Text style={[typography.bodySmall, { marginBottom: spacing.xs }]}>
+            {fastContext.titleHebrew}
+          </Text>
+          {fastContext.beginTime ? (
+            <Text style={[typography.body, { marginTop: spacing.xs }]}>
+              תחילת הצום: {fastContext.beginTime}
+            </Text>
+          ) : null}
+          {fastContext.endTime ? (
+            <Text style={[typography.body, { marginTop: spacing.xs }]}>
+              סיום הצום: {fastContext.endTime}
+            </Text>
+          ) : null}
+          {holidayGuide && holidayKey ? (
+            <Pressable
+              onPress={() => navigateToHomeHolidayGuide(holidayKey)}
+              accessibilityRole="button"
+              accessibilityLabel="מידע על הצום"
+              style={{
+                marginTop: spacing.md,
+                alignSelf: 'flex-end',
+                minHeight: 44,
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={[typography.label, { color: colors.secondary }]}>
+                מידע על הצום ←
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
+      {holidayGuide && holidayKey && holidayContextLabel && !fastContext ? (
+        <View
+          className="mb-6 rounded-2xl p-4"
+          style={{ backgroundColor: '#F4F1EA' }}
+        >
+          <Text style={[typography.bodySmall, { marginBottom: spacing.sm }]}>
+            {holidayContextLabel}
+          </Text>
+          {holidayLinkLabel ? (
+            <Pressable
+              onPress={() => navigateToHomeHolidayGuide(holidayKey)}
+              accessibilityRole="button"
+              accessibilityLabel={holidayLinkLabel}
+              style={{
+                alignSelf: 'flex-end',
+                minHeight: 44,
+                justifyContent: 'center',
+              }}
+            >
+              <Text style={[typography.label, { color: colors.secondary }]}>
+                {holidayLinkLabel} ←
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
+
+      {canOpenGuide && localRitualGuideId ? (
+        <View className="mb-6">
+          <Pressable
+            onPress={() =>
+              navigation.navigate('PrayerReader', {
+                ritualGuideId: localRitualGuideId,
+                nusach: ritualGuideNusach,
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={ritualGuideCtaLabel}
+            className="items-center rounded-2xl py-4"
+            style={{
+              backgroundColor: colors.secondary,
+              minHeight: 52,
+            }}
+          >
+            <Text style={[typography.subtitle, { color: colors.white }]}>
+              {ritualGuideCtaLabel}
+            </Text>
+          </Pressable>
+          {ritualGuideCatalogItem ? (
+            <Text
+              style={[
+                typography.caption,
+                { marginTop: spacing.sm, textAlign: 'center', color: colors.muted },
+              ]}
+            >
+              {ritualGuideCatalogItem.title}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {canOpenReader && localPrayerId ? (
+        <View className="mb-6">
+          {isPartialPrayer ? (
+            <Text
+              style={[
+                typography.caption,
+                {
+                  marginBottom: spacing.sm,
+                  textAlign: 'center',
+                  color: colors.accent,
+                },
+              ]}
+            >
+              תוכן חלקי
+            </Text>
+          ) : null}
+          <Pressable
+            onPress={() =>
+              navigation.navigate('PrayerReader', {
+                prayerId: localPrayerId,
+                nusach: readerNusach,
+              })
+            }
+            accessibilityRole="button"
+            accessibilityLabel={readerCtaLabel}
+            className="items-center rounded-2xl py-4"
+            style={{
+              backgroundColor: colors.secondary,
+              minHeight: 52,
+            }}
+          >
+            <Text style={[typography.subtitle, { color: colors.white }]}>
+              {readerCtaLabel}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {isPendingPrayer ? (
+        <View className="mb-6">
+          <Text
+            style={[
+              typography.bodySmall,
+              { textAlign: 'center', color: colors.accent },
+            ]}
+          >
+            סדר התפילה המלא יהיה זמין לאחר הוספת תוכן מאומת.
+          </Text>
+        </View>
+      ) : null}
 
       <View
         className="mb-6"

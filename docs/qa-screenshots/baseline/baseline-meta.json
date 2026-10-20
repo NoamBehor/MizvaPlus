@@ -1,0 +1,40 @@
+{
+  "status": "incomplete",
+  "capturedAt": "2026-10-11T11:30:00+03:00",
+  "projectRoot": "C:\\MizvaPlus",
+  "metro": {
+    "startedFromProject": "C:\\MizvaPlus",
+    "port": 8081,
+    "note": "npx expo start --port 8081 launched during this session"
+  },
+  "device": {
+    "model": "CPH2609",
+    "product": "OP5D35L1",
+    "connection": "wireless adb-tls (adb-228c0f57-1tEZ4E._adb-tls-connect._tcp)",
+    "adbStateEndOfSession": "disconnected"
+  },
+  "screens": {
+    "home": {
+      "captured": false,
+      "invalidAttempt": "docs/qa-screenshots/baseline/INVALID-home-native-android-cph2609-black-frame.png",
+      "bytes": 15427,
+      "reason": "PNG black/small; uiautomator dump showed com.android.systemui (lock screen), no com.mitzvahapp.app in tree"
+    },
+    "map": {
+      "captured": false,
+      "reason": "blocked after failed home validation; device disconnected before retry"
+    }
+  },
+  "ios": {
+    "captured": false,
+    "reason": "no iOS device/simulator on Windows host"
+  },
+  "visualRtlAudit": {
+    "performed": false,
+    "reason": "no valid native screenshots"
+  },
+  "toolsAdded": [
+    "scripts/capture-adb-screenshot.mjs",
+    "scripts/capture-native-ui-baseline.mjs"
+  ]
+}

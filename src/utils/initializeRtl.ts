@@ -8,8 +8,7 @@ import { I18nManager } from 'react-native';
  * layout direction fully applies. Do not add runtime restart hacks.
  */
 export function initializeRtl(): void {
-  if (!I18nManager.isRTL) {
-    I18nManager.allowRTL(true);
-    I18nManager.forceRTL(true);
-  }
+  I18nManager.allowRTL(true);
+  I18nManager.forceRTL(true);
+  I18nManager.swapLeftAndRightInRTL(true);
 }

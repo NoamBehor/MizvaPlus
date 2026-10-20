@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
+import { refreshOsNotificationPermission } from '@/services/notifications';
 import { syncNotificationSchedule } from '@/services/notificationScheduler';
 import type { CalendarLocationInput } from '@/types/calendar';
 import { useMitzvahStore } from '@/store/mitzvahStore';
@@ -15,6 +16,9 @@ export function useNotificationSync(
 ): void {
   const mitzvot = useMitzvahStore((state) => state.mitzvot);
   const preferences = useMitzvahStore((state) => state.preferences);
+  const setOsNotificationPermission = useMitzvahStore(
+    (state) => state.setOsNotificationPermission,
+  );
   const preferencesRef = useRef(preferences);
 
   preferencesRef.current = preferences;
@@ -39,6 +43,9 @@ export function useNotificationSync(
 
     const handleAppStateChange = (nextState: AppStateStatus) => {
       if (nextState === 'active') {
+        void refreshOsNotificationPermission().then((status) => {
+          setOsNotificationPermission(status);
+        });
         void syncNotificationSchedule(
           userId,
           preferencesRef.current,
@@ -52,5 +59,11 @@ export function useNotificationSync(
     return () => {
       subscription.remove();
     };
-  }, [userId, mitzvot, location?.latitude, location?.longitude]);
+  }, [
+    userId,
+    mitzvot,
+    location?.latitude,
+    location?.longitude,
+    setOsNotificationPermission,
+  ]);
 }

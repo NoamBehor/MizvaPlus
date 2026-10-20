@@ -34,5 +34,13 @@ yarn-error.*
 .env
 .env*.local
 
+# Play / release secrets and generated native projects
+secrets/
+android/
+ios/
+google-services.json
+*.keystore
+docs/play/preflight-result.json
+
 # typescript
 *.tsbuildinfo

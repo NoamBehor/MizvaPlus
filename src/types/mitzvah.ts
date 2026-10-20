@@ -5,7 +5,11 @@ export interface Mitzvah {
   title: string;
   category: MitzvahCategory;
   description: string;
+  /** Short user-facing explanation shown on the detail screen. */
+  explanationHebrew?: string;
   fullContentHebrew: string;
+  /** Mitzvah id key into MITZVAH_PRAYERS when liturgical text exists. */
+  prayerId?: string;
   xpReward: number;
   defaultTime?: string;
 }
@@ -16,7 +20,7 @@ export interface UserMitzvahPreference {
   enabled: boolean;
   reminderEnabled: boolean;
   /**
-   * Local device time in HH:mm format.
+   * Israel wall-clock time in HH:mm (Asia/Jerusalem).
    * Example: "07:30"
    */
   reminderTime?: string;

@@ -9,6 +9,7 @@ interface ToggleRowProps {
   onValueChange: (value: boolean) => void;
   icon?: string;
   disabled?: boolean;
+  accessibilityHint?: string;
 }
 
 export function ToggleRow({
@@ -17,6 +18,7 @@ export function ToggleRow({
   onValueChange,
   icon,
   disabled = false,
+  accessibilityHint,
 }: ToggleRowProps) {
   return (
     <View className="flex-row items-center justify-between py-2">
@@ -24,6 +26,8 @@ export function ToggleRow({
         value={value}
         onValueChange={onValueChange}
         disabled={disabled}
+        accessibilityLabel={label}
+        accessibilityHint={accessibilityHint}
         trackColor={{ false: colors.border, true: colors.accent }}
         thumbColor={colors.white}
       />

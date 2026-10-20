@@ -1,11 +1,23 @@
-export type QuizDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
+import type { ContentReviewMetadata, ContentSource } from '@/types/content';
+
+export type QuizDifficulty = 'EASY' | 'MEDIUM' | 'HARD' | 'VERY_HARD';
 
 export type QuizCategory =
+  | 'TORAH'
+  | 'TANAKH'
   | 'MITZVOT'
-  | 'PRAYER'
   | 'SHABBAT'
   | 'HOLIDAYS'
+  | 'TEFILLAH'
+  | 'JEWISH_HISTORY'
+  | 'HEBREW_TERMINOLOGY'
+  | 'JEWISH_THOUGHT'
+  | 'PARASHA'
+  /** @deprecated Use TEFILLAH */
+  | 'PRAYER'
+  /** @deprecated Use HEBREW_TERMINOLOGY */
   | 'HEBREW_CALENDAR'
+  /** @deprecated Use JEWISH_THOUGHT */
   | 'JEWISH_KNOWLEDGE';
 
 export interface QuizOption {
@@ -13,7 +25,7 @@ export interface QuizOption {
   textHebrew: string;
 }
 
-export interface QuizQuestion {
+export interface QuizQuestion extends ContentReviewMetadata {
   id: string;
   questionHebrew: string;
   options: QuizOption[];
@@ -21,6 +33,9 @@ export interface QuizQuestion {
   difficulty: QuizDifficulty;
   category: QuizCategory;
   explanationHebrew?: string;
+  source?: ContentSource;
+  tags?: string[];
+  enabled?: boolean;
   xpReward: number;
 }
 
@@ -52,4 +67,13 @@ export interface QuizSubmitResult {
   explanationHebrew?: string;
   correctOptionId: string;
   alreadyCompleted: boolean;
+}
+
+export interface DailyQuizSession {
+  dateKey: string;
+  questionIds: string[];
+  answeredCount: number;
+  currentIndex: number;
+  isComplete: boolean;
+  correctCount: number;
 }

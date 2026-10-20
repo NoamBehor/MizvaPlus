@@ -4,6 +4,11 @@ import { Platform } from 'react-native';
 /** Stable Android notification channel ID for mitzvah daily reminders. */
 export const MITZVAH_REMINDERS_CHANNEL_ID = 'mitzvah-reminders-v2';
 
+/** Android channel for nearby active minyan request alerts. */
+export const MINYAN_PROXIMITY_CHANNEL_ID = 'minyan-proximity-v1';
+
+export const MINYAN_PROXIMITY_CHANNEL_NAME = 'התראות מניין בקרבת מקום';
+
 /** v1 channel used a missing custom audio file named default. */
 const LEGACY_MITZVAH_REMINDERS_CHANNEL_ID = 'mitzvah-reminders';
 
@@ -50,7 +55,32 @@ export async function ensureMitzvahRemindersChannel(): Promise<void> {
   return channelReadyPromise;
 }
 
+let minyanProximityChannelReadyPromise: Promise<void> | null = null;
+
+export async function ensureMinyanProximityChannel(): Promise<void> {
+  if (Platform.OS !== 'android') {
+    return;
+  }
+
+  if (!minyanProximityChannelReadyPromise) {
+    minyanProximityChannelReadyPromise = (async () => {
+      await Notifications.setNotificationChannelAsync(
+        MINYAN_PROXIMITY_CHANNEL_ID,
+        {
+          name: MINYAN_PROXIMITY_CHANNEL_NAME,
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 200, 120, 200],
+          enableVibrate: true,
+        },
+      );
+    })();
+  }
+
+  return minyanProximityChannelReadyPromise;
+}
+
 /** Test helper: reset channel singleton between test runs. */
 export function resetMitzvahRemindersChannelState(): void {
   channelReadyPromise = null;
+  minyanProximityChannelReadyPromise = null;
 }

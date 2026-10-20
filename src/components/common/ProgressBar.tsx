@@ -2,16 +2,36 @@ import { useEffect, useRef } from 'react';
 import { Animated, Text, View } from 'react-native';
 
 import { colors } from '@/constants/colors';
+import { homeStatCard } from '@/constants/homeTheme';
 import { typography } from '@/constants/theme';
+
+type ProgressBarVariant = 'default' | 'hero';
 
 interface ProgressBarProps {
   percentage: number;
   label?: string;
+  variant?: ProgressBarVariant;
+  showPercentageLabel?: boolean;
 }
 
-export function ProgressBar({ percentage, label }: ProgressBarProps) {
+const BAR_HEIGHT: Record<ProgressBarVariant, number> = {
+  default: 12,
+  hero: 16,
+};
+
+export function ProgressBar({
+  percentage,
+  label,
+  variant = 'default',
+  showPercentageLabel,
+}: ProgressBarProps) {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const animatedWidth = useRef(new Animated.Value(clampedPercentage)).current;
+  const isComplete = clampedPercentage === 100;
+  const shouldShowPercentageLabel =
+    showPercentageLabel ?? variant === 'default';
+  const fillColor = isComplete ? colors.success : colors.accent;
+  const trackColor = variant === 'hero' ? homeStatCard.track : colors.border;
 
   useEffect(() => {
     Animated.timing(animatedWidth, {
@@ -30,18 +50,33 @@ export function ProgressBar({ percentage, label }: ProgressBarProps) {
     <View className="gap-2">
       {label ? <Text style={typography.bodySmall}>{label}</Text> : null}
       <View
-        className="h-3 w-full overflow-hidden rounded-full"
-        style={{ backgroundColor: colors.border }}
+        accessibilityRole="progressbar"
+        accessibilityValue={{
+          min: 0,
+          max: 100,
+          now: clampedPercentage,
+        }}
+        style={{
+          height: BAR_HEIGHT[variant],
+          width: '100%',
+          overflow: 'hidden',
+          borderRadius: BAR_HEIGHT[variant] / 2,
+          backgroundColor: trackColor,
+          direction: 'ltr',
+        }}
       >
         <Animated.View
-          className="h-full rounded-full"
           style={{
+            height: '100%',
             width: widthInterpolation,
-            backgroundColor: colors.accent,
+            borderRadius: BAR_HEIGHT[variant] / 2,
+            backgroundColor: fillColor,
           }}
         />
       </View>
-      <Text style={typography.caption}>{clampedPercentage}%</Text>
+      {shouldShowPercentageLabel ? (
+        <Text style={typography.caption}>{clampedPercentage}%</Text>
+      ) : null}
     </View>
   );
 }

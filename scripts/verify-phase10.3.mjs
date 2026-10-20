@@ -11,6 +11,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
+import { formatNetworkError } from './lib/supabase-live-env.mjs';
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 
@@ -707,7 +709,7 @@ function summarize() {
 }
 
 await runLiveChecks().catch((error) => {
-  record('live verification runtime', false, error instanceof Error ? error.message : String(error));
+  record('live verification runtime', false, formatNetworkError(error));
 });
 
 summarize();

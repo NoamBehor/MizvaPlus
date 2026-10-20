@@ -1,8 +1,14 @@
 import { useEffect } from 'react';
 
 import { onAuthStateChange } from '@/services/auth';
+import { isDevAuthBypassActive } from '@/services/auth/devAuthBypass';
+import { logDiagnosticEvent } from '@/services/diagnostics/diagnosticLogger';
 import { stopCloudSync } from '@/services/cloud/syncService';
-import { navigateToAuth, navigateToResetPassword } from '@/navigation/navigationRef';
+import {
+  navigateToAuth,
+  navigateToMain,
+  navigateToResetPassword,
+} from '@/navigation/navigationRef';
 import { onUserLogout } from '@/services/notificationScheduler';
 import { useAppStore } from '@/store/appStore';
 import { useGamificationStore } from '@/store/gamificationStore';
@@ -23,12 +29,22 @@ export function useAuthSession(): void {
       }
 
       if (session) {
+        logDiagnosticEvent('AUTH', 'auth_state_session_present', 'info', {
+          event,
+          rootAuthGateHasSession: true,
+        });
         return;
       }
 
       if (!useAppStore.getState().isAuthenticated) {
         return;
       }
+
+      logDiagnosticEvent('AUTH', 'auth_state_session_cleared', 'warn', {
+        event,
+        rootAuthGateHasSession: false,
+        sessionClearedAfterSignIn: true,
+      });
 
       const userId = useUserStore.getState().user?.id;
 
@@ -47,7 +63,11 @@ export function useAuthSession(): void {
         useAppStore.getState().setAuthenticated(false);
         useAppStore.getState().setOnboardingComplete(false);
         useMitzvahStore.getState().reset();
-        navigateToAuth();
+        if (isDevAuthBypassActive()) {
+          navigateToMain();
+        } else {
+          navigateToAuth();
+        }
       })();
     });
 

@@ -14,6 +14,8 @@ interface MitzvahPreferenceCardProps {
   onTrackingChange: (enabled: boolean) => void;
   onReminderChange: (enabled: boolean) => void;
   onReminderTimeChange: (time: string) => void;
+  permissionDeniedMessage?: string | null;
+  onClearPermissionMessage?: () => void;
   showCompletion?: boolean;
   isCompleted?: boolean;
   onToggleCompletion?: () => void;
@@ -25,6 +27,8 @@ export function MitzvahPreferenceCard({
   onTrackingChange,
   onReminderChange,
   onReminderTimeChange,
+  permissionDeniedMessage = null,
+  onClearPermissionMessage,
   showCompletion = false,
   isCompleted = false,
   onToggleCompletion,
@@ -50,9 +54,23 @@ export function MitzvahPreferenceCard({
         <ToggleRow
           label="תזכורת"
           value={preference.reminderEnabled}
-          onValueChange={onReminderChange}
+          onValueChange={(enabled) => {
+            onClearPermissionMessage?.();
+            onReminderChange(enabled);
+          }}
           disabled={!preference.enabled}
         />
+
+        {permissionDeniedMessage ? (
+          <Text
+            style={[
+              typography.bodySmall,
+              { color: colors.error, marginTop: 8, textAlign: 'center' },
+            ]}
+          >
+            {permissionDeniedMessage}
+          </Text>
+        ) : null}
 
         {preference.enabled ? (
           <View className="mt-1 px-1">

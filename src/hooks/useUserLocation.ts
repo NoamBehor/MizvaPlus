@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 
 import {
+  getCachedLocationIfPermitted,
   getCurrentLocation,
   getLocationPermissionStatus,
   LocationServiceError,
@@ -31,7 +32,7 @@ function toUserFacingError(error: unknown): {
       case 'permission_denied':
         return {
           code: error.code,
-          message: 'לא ניתן לגשת למיקום. יש לאפשר גישה בהגדרות המכשיר.',
+          message: 'כדי למצוא בתי כנסת בקרבתך, נדרש אישור מיקום.',
         };
       case 'services_disabled':
         return {
@@ -85,6 +86,11 @@ export function useUserLocation(): UseUserLocationResult {
     safeSet(setErrorCode, null);
 
     try {
+      const cached = await getCachedLocationIfPermitted();
+      if (cached) {
+        safeSet(setLocation, cached);
+      }
+
       const current = await getCurrentLocation();
       safeSet(setLocation, current);
       safeSet(setStatus, 'granted');
@@ -98,6 +104,7 @@ export function useUserLocation(): UseUserLocationResult {
         if (err.code === 'permission_denied') {
           const permission = await getLocationPermissionStatus();
           safeSet(setStatus, permission);
+          safeSet(setLocation, null);
         }
       }
     } finally {
@@ -119,9 +126,10 @@ export function useUserLocation(): UseUserLocationResult {
           setError,
           nextStatus === 'blocked'
             ? 'הגישה למיקום חסומה. יש לאפשר אותה בהגדרות המכשיר.'
-            : 'לא ניתן לגשת למיקום ללא אישור.',
+            : 'כדי למצוא בתי כנסת בקרבתך, נדרש אישור מיקום.',
         );
         safeSet(setErrorCode, 'permission_denied');
+        safeSet(setLocation, null);
         safeSet(setIsLoading, false);
         return;
       }
@@ -157,14 +165,26 @@ export function useUserLocation(): UseUserLocationResult {
 
     const bootstrap = async () => {
       try {
-        const permission = await getLocationPermissionStatus();
+        let permission = await getLocationPermissionStatus();
         safeSet(setStatus, permission);
+
+        if (permission === 'unknown' || permission === 'denied') {
+          permission = await requestLocationPermission();
+          safeSet(setStatus, permission);
+        }
 
         if (permission === 'granted') {
           await fetchLocation();
           return;
         }
 
+        safeSet(
+          setError,
+          permission === 'blocked'
+            ? 'הגישה למיקום חסומה. יש לאפשר אותה בהגדרות המכשיר.'
+            : 'כדי למצוא בתי כנסת בקרבתך, נדרש אישור מיקום.',
+        );
+        safeSet(setErrorCode, 'permission_denied');
         safeSet(setIsLoading, false);
       } catch (err) {
         const mapped = toUserFacingError(err);

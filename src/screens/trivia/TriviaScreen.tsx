@@ -2,21 +2,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
 import { Card } from '@/components/common/Card';
+import { ProgressBar } from '@/components/common/ProgressBar';
 import { ScreenContainer } from '@/components/common/ScreenContainer';
 import {
   QUIZ_CATEGORY_LABELS,
   QUIZ_DIFFICULTY_LABELS,
+  QUIZ_SESSION_SIZE,
 } from '@/constants/quizQuestions';
 import { colors } from '@/constants/colors';
-import { typography } from '@/constants/theme';
+import { spacing, typography } from '@/constants/theme';
 import {
-  getDailyQuizQuestion,
+  getAttemptForQuestion,
+  getDailyQuizSession,
   getOptionText,
-  getTodayAttempt,
+  getSessionQuestion,
   submitDailyQuizAnswer,
   toPublicQuestion,
 } from '@/services/quiz';
 import { useGamificationStore } from '@/store/gamificationStore';
+import { useHolidayContextStore } from '@/store/holidayContextStore';
 import { useUserStore } from '@/store/userStore';
 import { getActivityDateKey } from '@/utils/timezone';
 
@@ -31,13 +35,46 @@ export function TriviaScreen() {
   );
 
   const dateKey = getActivityDateKey();
-  const question = useMemo(() => getDailyQuizQuestion(dateKey), [dateKey]);
-  const publicQuestion = useMemo(() => toPublicQuestion(question), [question]);
+  const preferredCategories = useHolidayContextStore(
+    (state) => state.context.triviaCategories,
+  );
+  const quizOptions = useMemo(
+    () =>
+      preferredCategories.length > 0
+        ? { preferredCategories }
+        : undefined,
+    [preferredCategories],
+  );
+
+  const session = useMemo(() => {
+    if (!user) {
+      return null;
+    }
+    return getDailyQuizSession(user.id, dateKey, quizOptions);
+  }, [user, dateKey, quizOptions, quizAttempts]);
+
+  const question = useMemo(() => {
+    if (!user) {
+      return null;
+    }
+    return getSessionQuestion(user.id, dateKey, quizOptions);
+  }, [user, dateKey, quizOptions, quizAttempts]);
+
+  const publicQuestion = useMemo(
+    () => (question ? toPublicQuestion(question) : null),
+    [question],
+  );
+
+  const questionNumber = session
+    ? Math.min(session.answeredCount + 1, QUIZ_SESSION_SIZE)
+    : 1;
 
   const existingAttempt = useMemo(() => {
-    if (!user) return null;
-    return getTodayAttempt(user.id, dateKey);
-  }, [user, dateKey, quizAttempts]);
+    if (!user || !question) {
+      return null;
+    }
+    return getAttemptForQuestion(user.id, dateKey, question.id);
+  }, [user, dateKey, question, quizAttempts]);
 
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -49,10 +86,16 @@ export function TriviaScreen() {
   } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const isCompleted = existingAttempt !== null || feedback !== null;
+  const awaitingNextQuestion =
+    Boolean(feedback) && session !== null && !session.isComplete;
+  const isCompleted = session?.isComplete ?? false;
 
   useEffect(() => {
-    if (existingAttempt) {
+    setSelectedOptionId(null);
+    setFeedback(null);
+    setSubmitError(null);
+
+    if (existingAttempt && question) {
       setSelectedOptionId(existingAttempt.selectedOptionId);
       setFeedback({
         isCorrect: existingAttempt.isCorrect,
@@ -61,20 +104,20 @@ export function TriviaScreen() {
         selectedOptionId: existingAttempt.selectedOptionId,
       });
     }
-  }, [existingAttempt, question.explanationHebrew]);
+  }, [existingAttempt, question?.id, question?.explanationHebrew]);
 
   const handleSelectOption = useCallback(
     (optionId: string) => {
-      if (isCompleted || isSubmitting) {
+      if (feedback || isSubmitting || isCompleted) {
         return;
       }
       setSelectedOptionId(optionId);
     },
-    [isCompleted, isSubmitting],
+    [feedback, isCompleted, isSubmitting],
   );
 
   const handleSubmit = useCallback(async () => {
-    if (!user || !selectedOptionId || isCompleted || isSubmitting) {
+    if (!user || !selectedOptionId || feedback || isSubmitting || isCompleted) {
       return;
     }
 
@@ -86,6 +129,7 @@ export function TriviaScreen() {
         user.id,
         selectedOptionId,
         dateKey,
+        quizOptions,
       );
 
       setFeedback({
@@ -101,19 +145,41 @@ export function TriviaScreen() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [user, selectedOptionId, isCompleted, isSubmitting, dateKey]);
+  }, [
+    user,
+    selectedOptionId,
+    feedback,
+    isSubmitting,
+    isCompleted,
+    dateKey,
+    quizOptions,
+  ]);
 
-  if (!user) {
+  const handleContinue = useCallback(() => {
+    setSelectedOptionId(null);
+    setFeedback(null);
+    setSubmitError(null);
+  }, []);
+
+  if (!user || !session || !question || !publicQuestion) {
     return null;
   }
+
+  const progressValue = Math.round(
+    (session.answeredCount / QUIZ_SESSION_SIZE) * 100,
+  );
+  const isFinalQuestion = questionNumber === QUIZ_SESSION_SIZE;
 
   return (
     <ScreenContainer>
       <View className="mb-6">
         <Text style={typography.hero}>חידון יומי</Text>
         <Text style={[typography.bodySmall, { marginTop: 8 }]}>
-          שאלה 1 מתוך 1
+          שאלה {questionNumber} מתוך {QUIZ_SESSION_SIZE}
         </Text>
+        <View style={{ marginTop: spacing.md }}>
+          <ProgressBar percentage={progressValue} showPercentageLabel={false} />
+        </View>
       </View>
 
       {isCompleted ? (
@@ -126,10 +192,28 @@ export function TriviaScreen() {
           >
             ✓ החידון היומי הושלם
           </Text>
+          <Text
+            style={[
+              typography.bodySmall,
+              { marginTop: spacing.sm, textAlign: 'center', color: colors.muted },
+            ]}
+          >
+            {session.correctCount} תשובות נכונות מתוך {QUIZ_SESSION_SIZE}
+          </Text>
         </Card>
       ) : null}
 
-      <Card className="mb-4">
+      <Card
+        className="mb-4"
+        style={
+          isFinalQuestion && !isCompleted
+            ? {
+                borderWidth: 1,
+                borderColor: colors.accent,
+              }
+            : undefined
+        }
+      >
         <View className="mb-3 flex-row justify-between">
           <Text style={typography.caption}>
             {QUIZ_DIFFICULTY_LABELS[publicQuestion.difficulty]}
@@ -138,6 +222,21 @@ export function TriviaScreen() {
             {QUIZ_CATEGORY_LABELS[publicQuestion.category]}
           </Text>
         </View>
+
+        {isFinalQuestion && !isCompleted ? (
+          <Text
+            style={[
+              typography.label,
+              {
+                color: colors.accent,
+                marginBottom: spacing.sm,
+                textAlign: 'right',
+              },
+            ]}
+          >
+            שאלת האתגר הסופית
+          </Text>
+        ) : null}
 
         <Text style={[typography.subtitle, { marginBottom: 20 }]}>
           {publicQuestion.questionHebrew}
@@ -155,18 +254,22 @@ export function TriviaScreen() {
               <Pressable
                 key={option.id}
                 onPress={() => handleSelectOption(option.id)}
-                disabled={isCompleted || isSubmitting}
+                disabled={Boolean(feedback) || isSubmitting || isCompleted}
                 accessibilityRole="radio"
-                accessibilityState={{ selected: isSelected, disabled: isCompleted }}
-                className="flex-row items-center rounded-xl border px-4 py-3"
+                accessibilityState={{
+                  selected: isSelected,
+                  disabled: Boolean(feedback) || isCompleted,
+                }}
+                className="flex-row-reverse items-center gap-3 rounded-xl border px-4 py-3"
                 style={{
                   borderColor,
                   backgroundColor,
-                  opacity: isCompleted && !isSelected ? 0.6 : 1,
+                  opacity: feedback && !isSelected ? 0.6 : 1,
+                  minHeight: 48,
                 }}
               >
                 <View
-                  className="ml-3 h-5 w-5 items-center justify-center rounded-full border-2"
+                  className="h-5 w-5 items-center justify-center rounded-full border-2"
                   style={{
                     borderColor: isSelected ? colors.accent : colors.muted,
                   }}
@@ -242,7 +345,7 @@ export function TriviaScreen() {
         </Text>
       ) : null}
 
-      {!isCompleted ? (
+      {!feedback && !isCompleted ? (
         <Pressable
           onPress={() => void handleSubmit()}
           disabled={!selectedOptionId || isSubmitting}
@@ -263,6 +366,23 @@ export function TriviaScreen() {
               בדוק תשובה
             </Text>
           )}
+        </Pressable>
+      ) : null}
+
+      {awaitingNextQuestion ? (
+        <Pressable
+          onPress={handleContinue}
+          accessibilityRole="button"
+          accessibilityLabel="המשך לשאלה הבאה"
+          className="items-center rounded-2xl py-4"
+          style={{
+            backgroundColor: colors.primary,
+            minHeight: 48,
+          }}
+        >
+          <Text style={[typography.subtitle, { color: colors.white }]}>
+            המשך לשאלה הבאה
+          </Text>
         </Pressable>
       ) : null}
 
