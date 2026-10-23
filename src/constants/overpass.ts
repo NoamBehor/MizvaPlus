@@ -16,9 +16,12 @@ export const OVERPASS_API_URL =
  */
 export const OVERPASS_ENDPOINTS = [
   OVERPASS_API_URL,
+  'https://overpass.openstreetmap.fr/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ].filter((url, index, all) => all.indexOf(url) === index);
+
+/** Delay before retrying a retryable HTTP status on the same Overpass endpoint. */
+export const OVERPASS_SAME_ENDPOINT_RETRY_DELAY_MS = 1_500;
 
 /**
  * Custom User-Agent for Overpass requests.

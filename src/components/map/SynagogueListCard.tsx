@@ -121,7 +121,7 @@ export function SynagogueListCard({
             </View>
           ) : null}
 
-          <View className="mt-1 flex-row-reverse flex-wrap items-center gap-2">
+          <View className="mt-1 flex-row flex-wrap items-center gap-2">
             {distanceLabel ? (
               <Text style={[typography.label, { color: colors.accent }]}>
                 {distanceLabel}

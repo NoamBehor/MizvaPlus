@@ -518,6 +518,11 @@ function runPhase1051Checks() {
   );
 
   recordCheck(
+    'P10.5-001: app.config.js loads Android Maps key from local .env',
+    appConfig.includes('localEnv.GOOGLE_MAPS_ANDROID_API_KEY'),
+  );
+
+  recordCheck(
     'P10.5-004: mitzvah reminders Android channel defined',
     channelsSrc.includes("MITZVAH_REMINDERS_CHANNEL_ID = 'mitzvah-reminders'") &&
       channelsSrc.includes('תזכורות מצוות'),
@@ -646,8 +651,14 @@ function runPhase1051Checks() {
 
   recordCheck(
     'Map architecture: MapScreen does not import Google Places',
-    !mapSrc.toLowerCase().includes('google places') &&
-      !mapSrc.includes('PROVIDER_GOOGLE'),
+    !mapSrc.toLowerCase().includes('google places'),
+  );
+
+  recordCheck(
+    'Map architecture: Android uses PROVIDER_GOOGLE without forcing Google on iOS',
+    mapSrc.includes('PROVIDER_GOOGLE') &&
+      mapSrc.includes("Platform.OS === 'android' ? PROVIDER_GOOGLE") &&
+      !mapSrc.includes('iosGoogleMapsApiKey'),
   );
 }
 

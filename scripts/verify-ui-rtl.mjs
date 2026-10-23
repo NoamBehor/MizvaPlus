@@ -47,9 +47,19 @@ record(
   appTsx.includes('appRootLayoutStyle'),
 );
 const layoutDir = read('src/constants/layoutDirection.ts');
+const rtlInit = read('src/utils/initializeRtl.ts');
 record(
   'Layout direction constant defines app root style',
   layoutDir.includes("direction:") && layoutDir.includes('appRootLayoutStyle'),
+);
+record(
+  'App root direction is always rtl',
+  layoutDir.includes("direction: 'rtl'") && !layoutDir.includes('I18nManager.isRTL'),
+);
+record(
+  'Physical left and right are not swapped',
+  rtlInit.includes('swapLeftAndRightInRTL(false)') &&
+    !rtlInit.includes('swapLeftAndRightInRTL(true)'),
 );
 record(
   'Typography tokens include RTL text alignment',

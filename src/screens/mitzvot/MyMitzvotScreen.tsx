@@ -109,7 +109,7 @@ export function MyMitzvotScreen() {
 
       <View
 
-        className="mb-4 flex-row-reverse items-center justify-between"
+        className="mb-4 flex-row items-center justify-between"
 
         style={{ gap: spacing.sm }}
 

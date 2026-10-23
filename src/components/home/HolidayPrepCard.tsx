@@ -17,6 +17,9 @@ interface HolidayPrepCardProps {
   context: HolidayContext;
   overrideHolidayKey?: string | null;
   initialExpanded?: boolean;
+  expandSignal?: number;
+  forceVisible?: boolean;
+  onLayoutY?: (y: number) => void;
 }
 
 function renderTipList(
@@ -126,6 +129,9 @@ export function HolidayPrepCard({
   context,
   overrideHolidayKey,
   initialExpanded = false,
+  expandSignal = 0,
+  forceVisible = false,
+  onLayoutY,
 }: HolidayPrepCardProps) {
   const [dismissed, setDismissed] = useState(false);
   const [expanded, setExpanded] = useState(initialExpanded);
@@ -138,7 +144,14 @@ export function HolidayPrepCard({
   }, [initialExpanded, effectiveHolidayKey]);
 
   useEffect(() => {
-    if (overrideHolidayKey || !context.holidayKey) {
+    if (expandSignal > 0) {
+      setDismissed(false);
+      setExpanded(true);
+    }
+  }, [expandSignal]);
+
+  useEffect(() => {
+    if (overrideHolidayKey || !context.holidayKey || expandSignal > 0) {
       return;
     }
 
@@ -149,7 +162,7 @@ export function HolidayPrepCard({
         }
       },
     );
-  }, [context.holidayKey, overrideHolidayKey]);
+  }, [context.holidayKey, expandSignal, overrideHolidayKey]);
 
   const handleDismiss = useCallback(async () => {
     if (overrideHolidayKey || !context.holidayKey) {
@@ -162,11 +175,11 @@ export function HolidayPrepCard({
   }, [context.holidayKey, overrideHolidayKey]);
 
   const isForcedGuide = Boolean(overrideHolidayKey && guide);
-  if ((!context.active || !context.prepCardEnabled) && !isForcedGuide) {
+  if ((!context.active || !context.prepCardEnabled) && !isForcedGuide && !forceVisible) {
     return null;
   }
 
-  if (!guide || dismissed) {
+  if (!guide || (dismissed && !forceVisible)) {
     return null;
   }
 
@@ -179,7 +192,11 @@ export function HolidayPrepCard({
       : null;
 
   return (
-    <Card className="mb-4" elevated>
+    <Card
+      className="mb-4"
+      elevated
+      onLayout={(event) => onLayoutY?.(event.nativeEvent.layout.y)}
+    >
       <LinearGradient
         colors={theme.heroGradient}
         start={{ x: 0, y: 0 }}
@@ -190,23 +207,7 @@ export function HolidayPrepCard({
         }}
       >
         <View className="flex-row items-start justify-between">
-          <Pressable
-            onPress={() => void handleDismiss()}
-            accessibilityRole="button"
-            accessibilityLabel="סגור"
-            hitSlop={12}
-            className="rounded-full px-2 py-1"
-            style={{
-              minWidth: 44,
-              minHeight: 44,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <Text style={[typography.body, { color: theme.labelColor }]}>✕</Text>
-          </Pressable>
-
-          <View className="flex-1 items-end">
+          <View className="flex-1 items-start">
             <Text style={{ fontSize: 22, marginBottom: spacing.xs }}>
               {theme.icon}
             </Text>
@@ -241,6 +242,22 @@ export function HolidayPrepCard({
               </Text>
             ) : null}
           </View>
+
+          <Pressable
+            onPress={() => void handleDismiss()}
+            accessibilityRole="button"
+            accessibilityLabel="סגור"
+            hitSlop={12}
+            className="rounded-full px-2 py-1"
+            style={{
+              minWidth: 44,
+              minHeight: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Text style={[typography.body, { color: theme.labelColor }]}>✕</Text>
+          </Pressable>
         </View>
 
         {!expanded ? (

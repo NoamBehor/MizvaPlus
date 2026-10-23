@@ -23,7 +23,7 @@ export function PodcastSpeedSelector({
       <Text style={[typography.label, { marginBottom: spacing.sm }]}>
         שינוי מהירות
       </Text>
-      <View className="flex-row-reverse items-center gap-2">
+      <View className="flex-row items-center gap-2">
         {PODCAST_PLAYBACK_SPEEDS.map((option) => {
           const isSelected = option === speed;
           const label = option === 1 ? '1x' : `${option}x`;

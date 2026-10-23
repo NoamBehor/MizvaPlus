@@ -44,6 +44,12 @@ export function navigateToMyMitzvot(): void {
   }
 }
 
+export function navigateToProfile(): void {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('Main', { screen: 'Profile' });
+  }
+}
+
 export function navigateToTrivia(): void {
   if (navigationRef.isReady()) {
     navigationRef.navigate('Main', { screen: 'Trivia' });

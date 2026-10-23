@@ -438,7 +438,16 @@ function ReaderHeader({
   return (
     <View className="mb-4">
       <View className="mb-3 flex-row items-center justify-between">
-        <View className="flex-row items-center gap-2">
+        <Pressable
+          onPress={onBack}
+          accessibilityRole="button"
+          accessibilityLabel="חזרה"
+          style={{ minHeight: 44, justifyContent: 'center' }}
+        >
+          <Text style={typography.label}>→ חזרה</Text>
+        </Pressable>
+
+        <View className="flex-row items-center gap-2" style={{ direction: 'ltr' }}>
           <FontControlButton
             label="A-"
             accessibilityLabel="הקטן גופן"
@@ -455,15 +464,6 @@ function ReaderHeader({
             disabled={!canIncrease}
           />
         </View>
-
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="חזרה"
-          style={{ minHeight: 44, justifyContent: 'center' }}
-        >
-          <Text style={typography.label}>← חזרה</Text>
-        </Pressable>
       </View>
 
       <View style={prayerRtlContainer}>
@@ -583,7 +583,7 @@ function SectionNavigator({
   return (
     <View className="mb-3">
       {onOpenTableOfContents ? (
-        <View className="mb-2 flex-row-reverse items-center justify-between">
+        <View className="mb-2 flex-row items-center justify-between">
           <Pressable
             onPress={onOpenTableOfContents}
             accessibilityRole="button"
@@ -700,7 +700,7 @@ function SectionTableOfContents({
             maxHeight: '78%',
           }}
         >
-          <View className="mb-4 flex-row-reverse items-center justify-between">
+          <View className="mb-4 flex-row items-center justify-between">
             <Text style={typography.subtitle}>תוכן העניינים</Text>
             <Pressable
               onPress={onClose}
@@ -810,7 +810,7 @@ function ResumeBanner({ onResume, onDismiss }: ResumeBannerProps) {
       >
         המשך מהמקום האחרון
       </Text>
-      <View className="flex-row-reverse gap-3">
+      <View className="flex-row gap-3">
         <Pressable
           onPress={onResume}
           accessibilityRole="button"
@@ -1007,7 +1007,7 @@ function RitualGuideSectionBlock({
       onLayout={(event) => onLayout(event.nativeEvent.layout.y)}
       style={{ ...prayerRtlContainer, marginBottom: isLast ? 0 : sectionSpacing }}
     >
-      <View className="mb-3 flex-row-reverse items-start gap-3">
+      <View className="mb-3 flex-row items-start gap-3">
         {stepNumber != null ? (
           <View
             className="items-center justify-center rounded-full"
@@ -1025,7 +1025,7 @@ function RitualGuideSectionBlock({
         <View className="flex-1" style={prayerRtlContainer}>
           {kindLabel ? (
             <View
-              className="mb-1 self-end rounded-full px-3 py-1"
+              className="mb-1 self-start rounded-full px-3 py-1"
               style={{
                 backgroundColor: surfaces.prayerSectionChip,
                 flexShrink: 1,
@@ -1071,7 +1071,7 @@ function RitualGuideSectionBlock({
           }}
         >
           <View
-            className="mb-2 self-end rounded-full px-3 py-1"
+            className="mb-2 self-start rounded-full px-3 py-1"
             style={{ backgroundColor: surfaces.prayerSectionConditional, flexShrink: 1 }}
           >
             <Text
@@ -1115,7 +1115,7 @@ function RitualGuideSectionBlock({
           >
             {paragraphIsBlessing ? (
               <View
-                className="mb-2 self-end rounded-full px-3 py-1"
+                className="mb-2 self-start rounded-full px-3 py-1"
                 style={{
                   backgroundColor: surfaces.prayerSectionChip,
                   flexShrink: 1,

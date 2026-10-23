@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, Text, View } from 'react-native';
 
+import { AppIcon } from '@/components/common/AppIcon';
+import { ScreenContainer } from '@/components/common/ScreenContainer';
 import { BadgeGrid } from '@/components/profile/BadgeGrid';
 import { MinyanProximityAlertSettings } from '@/components/profile/MinyanProximityAlertSettings';
-import { Card } from '@/components/common/Card';
-import { ProgressBar } from '@/components/common/ProgressBar';
-import { ScreenContainer } from '@/components/common/ScreenContainer';
+import { ProfileAccountCard } from '@/components/profile/ProfileAccountCard';
+import { ProfileEditNameModal } from '@/components/profile/ProfileEditNameModal';
+import { ProfileManageMitzvotBanner } from '@/components/profile/ProfileManageMitzvotBanner';
+import { ProfileXpCard } from '@/components/profile/ProfileXpCard';
 import { colors } from '@/constants/colors';
+import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
+import { homeFonts, homeTheme } from '@/constants/homeTheme';
+import { profileTheme } from '@/constants/profileTheme';
 import { borderRadius, spacing, typography } from '@/constants/theme';
 import { getLevelProgress } from '@/types/gamification';
 import { getGamificationStats } from '@/services/gamification';
@@ -29,8 +35,9 @@ import {
   isDevPreviewMode,
   resetDevPreviewSession,
 } from '@/services/devPreview';
-import { flushCloudSync, stopCloudSync } from '@/services/cloud/syncService';
+import { flushCloudSync, requestCloudSync, stopCloudSync } from '@/services/cloud/syncService';
 import { onUserLogout } from '@/services/notificationScheduler';
+import { updateProfile } from '@/services/profile';
 import { useAppStore } from '@/store/appStore';
 import { useGamificationStore } from '@/store/gamificationStore';
 import { useMitzvahStore } from '@/store/mitzvahStore';
@@ -39,12 +46,16 @@ import { useUserStore } from '@/store/userStore';
 const DEV_DIAGNOSTICS_TAP_COUNT = 5;
 
 export function ProfileScreen() {
+  const fontsLoaded = useHomeFonts();
   const devTapCountRef = useRef(0);
   const user = useUserStore((state) => state.user);
+  const setUser = useUserStore((state) => state.setUser);
   const clearUser = useUserStore((state) => state.clearUser);
+  const persistUser = useUserStore((state) => state.persistUser);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const setAuthenticated = useAppStore((state) => state.setAuthenticated);
   const [isAnonymousSession, setIsAnonymousSession] = useState(false);
+  const [editNameVisible, setEditNameVisible] = useState(false);
   const setOnboardingComplete = useAppStore((state) => state.setOnboardingComplete);
   const clearGamification = useGamificationStore((state) => state.clear);
 
@@ -138,11 +149,25 @@ export function ProfileScreen() {
     ]);
   };
 
-  useEffect(() => {
-    if (!__DEV__) {
+  const handleEditProfile = () => {
+    if (isGuest) {
+      navigateToAuth();
       return;
     }
+    setEditNameVisible(true);
+  };
 
+  const handleSaveDisplayName = async (displayName: string) => {
+    if (!user) {
+      throw new Error('No user');
+    }
+    const updated = await updateProfile(user.id, { displayName });
+    setUser(updated);
+    await persistUser();
+    void requestCloudSync(user.id);
+  };
+
+  useEffect(() => {
     void getCurrentSession().then((session) => {
       setIsAnonymousSession(isAnonymousAuthUser(session));
     });
@@ -155,9 +180,10 @@ export function ProfileScreen() {
     isAuthenticated,
     isAnonymous: isAnonymousSession,
   });
+  const isGuest = showDevPreviewStatus || showDevBypassStatus || isAnonymousSession;
 
   return (
-    <ScreenContainer>
+    <ScreenContainer backgroundColor={profileTheme.canvas} horizontalPadding={spacing.md}>
       {showDevPreviewStatus ? (
         <View
           className="mb-4 rounded-2xl px-4 py-3"
@@ -183,149 +209,185 @@ export function ProfileScreen() {
         </View>
       ) : null}
 
-      <View className="mb-6">
-        <Text style={typography.hero}>פרופיל</Text>
-        <Pressable
-          onPress={() => {
-            if (!__DEV__) {
-              return;
-            }
-            devTapCountRef.current += 1;
-            if (devTapCountRef.current >= DEV_DIAGNOSTICS_TAP_COUNT) {
-              devTapCountRef.current = 0;
-              navigateToDeveloperDiagnostics();
-            }
-          }}
-        >
-          <Text style={[typography.bodySmall, { marginTop: 8 }]}>
-            פרטי החשבון והגדרות
-            {__DEV__ ? ' · dev diagnostics' : ''}
-          </Text>
-        </Pressable>
-      </View>
-
-      {stats && levelProgress ? (
-        <Card className="mb-4" elevated>
-          <View
-            className="flex-row items-center justify-between"
-            style={{ marginBottom: spacing.md }}
-          >
-            <View
-              style={{
-                backgroundColor: '#FEF3C7',
-                borderRadius: borderRadius.lg,
-                paddingHorizontal: spacing.sm,
-                paddingVertical: spacing.xs,
-              }}
-            >
-              <Text style={[typography.caption, { color: colors.primary }]}>
-                רמה {levelProgress.currentLevel}
-              </Text>
-            </View>
-            <Text style={typography.subtitle}>⭐ {stats.xp} XP</Text>
-          </View>
-
-          <ProgressBar
-            percentage={levelProgress.progressPercentage}
-            label={
-              levelProgress.xpForNextLevel !== null
-                ? `עוד ${levelProgress.xpForNextLevel - stats.xp} XP לרמה הבאה`
-                : 'רמה מקסימלית'
-            }
-          />
-
-          <View
-            style={{
-              marginTop: spacing.md,
-              gap: spacing.sm,
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-            }}
-          >
-            {[
-              { icon: '🔥', label: `${stats.streakCount} ימים ברצף` },
-              { icon: '✓', label: `${stats.completedMitzvotCount} מצוות` },
-              { icon: '🧠', label: `${stats.quizCount} חידונים` },
-              { icon: '🏆', label: `${stats.unlockedBadgeCount} הישגים` },
-            ].map((item) => (
-              <View
-                key={item.label}
-                style={{
-                  backgroundColor: '#F8FAFC',
-                  borderRadius: borderRadius.lg,
-                  paddingHorizontal: spacing.sm,
-                  paddingVertical: spacing.xs,
-                  borderWidth: 1,
-                  borderColor: '#E2E8F0',
-                }}
-              >
-                <Text style={typography.bodySmall}>
-                  {item.icon} {item.label}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </Card>
-      ) : null}
-
-      <MinyanProximityAlertSettings />
-
-      {!showDevPreviewStatus ? (
-        <Card className="mb-4" elevated>
-          <Text style={typography.label}>שם</Text>
-          <Text style={[typography.subtitle, { marginTop: 4 }]}>
-            {user?.displayName ?? '—'}
-          </Text>
-
-          <Text style={[typography.label, { marginTop: 16 }]}>אימייל</Text>
-          <Text style={[typography.body, { marginTop: 4 }]}>
-            {user?.email ?? '—'}
-          </Text>
-        </Card>
-      ) : null}
-
-      <View className="mb-4">
-        <Text style={[typography.title, { marginBottom: 12 }]}>הישגים</Text>
-        <BadgeGrid />
-      </View>
-
-      <Pressable
-        onPress={() => void handleLogout()}
-        accessibilityRole="button"
-        accessibilityLabel="התנתק"
-        className="items-center py-4"
+      <View
         style={{
-          backgroundColor: '#FEF2F2',
-          borderRadius: borderRadius.xl,
-          borderWidth: 1,
-          borderColor: '#FECACA',
-          minHeight: 52,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          gap: spacing.sm,
+          marginBottom: profileTheme.sectionGap,
         }}
       >
-        <Text style={[typography.subtitle, { color: colors.error }]}>
-          התנתק
-        </Text>
-      </Pressable>
+        <View style={{ flex: 1 }}>
+          <Text
+            accessibilityRole="header"
+            style={[
+              typography.hero,
+              homeFontStyle(fontsLoaded, homeFonts.bold),
+              { fontSize: 24, color: homeTheme.text },
+            ]}
+          >
+            פרופיל
+          </Text>
+          <Pressable
+            accessibilityRole="text"
+            onPress={() => {
+              if (!__DEV__) {
+                return;
+              }
+              devTapCountRef.current += 1;
+              if (devTapCountRef.current >= DEV_DIAGNOSTICS_TAP_COUNT) {
+                devTapCountRef.current = 0;
+                navigateToDeveloperDiagnostics();
+              }
+            }}
+          >
+            <Text style={[typography.bodySmall, { marginTop: 4, color: homeTheme.muted }]}>
+              פרטי חשבון, התקדמות והגדרות אישיות
+              {__DEV__ ? ' · dev diagnostics' : ''}
+            </Text>
+          </Pressable>
+        </View>
 
-      <Pressable
-        onPress={() => navigateToLegalDocument('privacy')}
-        accessibilityRole="button"
-        accessibilityLabel="מדיניות פרטיות"
-        className="items-center py-4 mt-3"
-        style={{ minHeight: 52 }}
-      >
-        <Text style={[typography.body, { color: colors.accent }]}>מדיניות פרטיות</Text>
-      </Pressable>
+        {isGuest ? (
+          <View style={guestPill}>
+            <View style={guestDot} />
+            <Text
+              style={[
+                homeFontStyle(fontsLoaded, homeFonts.semibold),
+                { color: '#92400E', fontSize: 11 },
+              ]}
+            >
+              משתמש אורח
+            </Text>
+          </View>
+        ) : null}
+      </View>
 
-      <Pressable
-        onPress={confirmDeleteAccount}
-        accessibilityRole="button"
-        accessibilityLabel="מחיקת חשבון"
-        className="items-center py-4"
-        style={{ minHeight: 52 }}
-      >
-        <Text style={[typography.body, { color: colors.error }]}>מחיקת חשבון</Text>
-      </Pressable>
+      <View style={{ gap: profileTheme.sectionGap }}>
+        {stats && levelProgress ? (
+          <ProfileXpCard stats={stats} levelProgress={levelProgress} />
+        ) : null}
+
+        {user || isGuest ? (
+          <ProfileAccountCard
+            displayName={user?.displayName ?? ''}
+            email={user?.email ?? ''}
+            isGuest={isGuest}
+            onEditPress={handleEditProfile}
+          />
+        ) : null}
+
+        <ProfileManageMitzvotBanner />
+
+        <MinyanProximityAlertSettings />
+
+        <BadgeGrid stats={stats} />
+
+        <View style={footerActions}>
+          <Pressable
+            onPress={() => void handleLogout()}
+            accessibilityRole="button"
+            accessibilityLabel="התנתק מהחשבון"
+            style={({ pressed }) => [logoutButton, pressed && { transform: [{ scale: 0.99 }] }]}
+          >
+            <AppIcon name="logout" size={18} color="#BE123C" />
+            <Text
+              style={[
+                homeFontStyle(fontsLoaded, homeFonts.semibold),
+                { color: '#BE123C', fontSize: 14 },
+              ]}
+            >
+              התנתק מהחשבון
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => navigateToLegalDocument('privacy')}
+            accessibilityRole="button"
+            accessibilityLabel="מדיניות פרטיות ותנאי שימוש"
+            style={linkButton}
+          >
+            <Text
+              style={[
+                typography.caption,
+                { color: homeTheme.muted, textDecorationLine: 'underline' },
+              ]}
+            >
+              מדיניות פרטיות ותנאי שימוש
+            </Text>
+          </Pressable>
+
+          <Pressable
+            onPress={confirmDeleteAccount}
+            accessibilityRole="button"
+            accessibilityLabel="מחיקת חשבון לצמיתות"
+            style={linkButton}
+          >
+            <Text
+              style={[
+                homeFontStyle(fontsLoaded, homeFonts.semibold),
+                { color: '#E11D48', fontSize: 12 },
+              ]}
+            >
+              מחיקת חשבון לצמיתות
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <ProfileEditNameModal
+        visible={editNameVisible}
+        initialName={user?.displayName ?? ''}
+        onClose={() => setEditNameVisible(false)}
+        onSave={handleSaveDisplayName}
+      />
     </ScreenContainer>
   );
 }
+
+const guestPill = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  gap: 6,
+  backgroundColor: 'rgba(254, 243, 199, 0.8)',
+  borderWidth: 1,
+  borderColor: '#FCD34D',
+  borderRadius: 999,
+  paddingHorizontal: 10,
+  paddingVertical: 4,
+};
+
+const guestDot = {
+  width: 6,
+  height: 6,
+  borderRadius: 3,
+  backgroundColor: '#F59E0B',
+};
+
+const footerActions = {
+  alignItems: 'center' as const,
+  gap: 4,
+  paddingTop: spacing.xs,
+  paddingBottom: spacing.md,
+};
+
+const logoutButton = {
+  width: '100%' as const,
+  backgroundColor: 'rgba(255, 241, 242, 0.8)',
+  borderRadius: borderRadius.lg,
+  borderWidth: 1,
+  borderColor: '#FECDD3',
+  minHeight: 52,
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  gap: 8,
+};
+
+const linkButton = {
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  minHeight: 44,
+  paddingVertical: spacing.xs,
+};

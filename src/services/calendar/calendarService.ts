@@ -1,3 +1,4 @@
+import { DEFAULT_PLACE_NAME } from '@/constants/defaultPlace';
 import { getWeeklyParashaForDateKey } from '@/services/calendar/hebcalProvider';
 import { buildCalendarDiagnosticsSnapshot } from '@/services/diagnostics/calendarDiagnostics';
 import { logDiagnosticEvent } from '@/services/diagnostics/diagnosticLogger';
@@ -243,7 +244,7 @@ export class CalendarService {
       events: [],
       weeklyParasha: null,
       locationSource: 'fallback',
-      locationLabel: 'ירושלים (מיקום ברירת מחדל)',
+      locationLabel: `${DEFAULT_PLACE_NAME} (מיקום ברירת מחדל)`,
       freshness: 'unavailable',
     };
   }

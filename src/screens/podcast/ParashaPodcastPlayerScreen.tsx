@@ -20,7 +20,7 @@ export function ParashaPodcastPlayerScreen({
 
   return (
     <ScreenContainer scrollable>
-      <View className="flex-row-reverse items-center justify-between">
+      <View className="flex-row items-center justify-between">
         <View style={{ width: 72 }} />
         <Text style={typography.subtitle}>פודקאסט פרשת השבוע</Text>
         <Pressable

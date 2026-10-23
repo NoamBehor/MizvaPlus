@@ -107,7 +107,12 @@ export function useSynagogues(
 
   useEffect(() => {
     isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
+  useEffect(() => {
     if (
       typeof latitude !== 'number' ||
       typeof longitude !== 'number' ||
@@ -119,16 +124,10 @@ export function useSynagogues(
       setIsStaleCache(false);
       setIsLoading(false);
       lastRequestKeyRef.current = null;
-      return () => {
-        isMountedRef.current = false;
-      };
+      return;
     }
 
     void load(coordinates);
-
-    return () => {
-      isMountedRef.current = false;
-    };
   }, [coordinates, latitude, longitude, load]);
 
   const refresh = useCallback(async () => {

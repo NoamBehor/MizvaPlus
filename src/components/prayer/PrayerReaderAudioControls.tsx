@@ -112,7 +112,7 @@ export function PrayerReaderAudioControls({
         </Text>
       ) : null}
 
-      <View className="flex-row-reverse items-center gap-3" style={{ width: '100%' }}>
+      <View className="flex-row items-center gap-3" style={{ width: '100%' }}>
         <Pressable
           onPress={handleStop}
           disabled={!hasContent || isWebPreview}

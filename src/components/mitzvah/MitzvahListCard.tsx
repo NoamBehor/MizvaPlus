@@ -27,7 +27,14 @@ export function MitzvahListCard({
     >
       <Card className="mb-3">
         <View className="flex-row items-center justify-between">
-          <View className="items-end">
+          <View className="flex-row items-center gap-3">
+            <Text style={{ fontSize: 28 }}>{icon}</Text>
+            <View className="items-start">
+              <Text style={typography.subtitle}>{mitzvah.title}</Text>
+            </View>
+          </View>
+
+          <View className="items-start">
             <Text
               style={[
                 typography.caption,
@@ -42,13 +49,6 @@ export function MitzvahListCard({
             <Text style={typography.bodySmall} numberOfLines={2}>
               {mitzvah.description}
             </Text>
-          </View>
-
-          <View className="flex-row items-center gap-3">
-            <View className="items-end">
-              <Text style={typography.subtitle}>{mitzvah.title}</Text>
-            </View>
-            <Text style={{ fontSize: 28 }}>{icon}</Text>
           </View>
         </View>
       </Card>

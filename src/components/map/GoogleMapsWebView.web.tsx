@@ -3,6 +3,7 @@ import { Pressable, Text, View, type View as RNView } from 'react-native';
 
 import { MapMarkerLegend } from '@/components/map/MapMarkerLegend';
 import { colors } from '@/constants/colors';
+import { DEFAULT_PLACE_NAME } from '@/constants/defaultPlace';
 import {
   MAP_INITIAL_LATITUDE_DELTA,
   SYNAGOGUE_FOCUS_LATITUDE_DELTA,
@@ -355,7 +356,7 @@ export function GoogleMapsWebView({
           style={{ backgroundColor: 'rgba(254, 243, 199, 0.95)' }}
         >
           <Text style={[typography.caption, { textAlign: 'center' }]}>
-            מיקום GPS לא זמין — מוצגים בתי כנסת לפי מיקום ברירת מחדל (ירושלים)
+            {`מיקום GPS לא זמין — מוצגים בתי כנסת לפי מיקום ברירת מחדל (${DEFAULT_PLACE_NAME})`}
           </Text>
         </View>
       ) : null}

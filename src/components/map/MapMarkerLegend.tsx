@@ -30,7 +30,7 @@ export function MapMarkerLegend() {
       >
         מקרא
       </Text>
-      <View className="flex-row-reverse items-center gap-1.5">
+      <View className="flex-row items-center gap-1.5">
         <View
           style={{
             width: 10,
@@ -41,7 +41,7 @@ export function MapMarkerLegend() {
         />
         <Text style={[typography.caption, { color: colors.muted }]}>בית כנסת</Text>
       </View>
-      <View className="mt-1 flex-row-reverse items-center gap-1.5">
+      <View className="mt-1 flex-row items-center gap-1.5">
         <View
           style={{
             width: 10,

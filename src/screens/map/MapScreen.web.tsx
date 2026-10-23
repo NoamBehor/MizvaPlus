@@ -13,6 +13,7 @@ import { MapScreenHeader } from '@/components/map/MapScreenHeader';
 import { SynagogueListCard } from '@/components/map/SynagogueListCard';
 import { filterSynagoguesForMap } from '@/utils/mapSynagogues';
 import { colors } from '@/constants/colors';
+import { DEFAULT_PLACE_NAME } from '@/constants/defaultPlace';
 import { DEFAULT_SYNAGOGUE_RADIUS_METERS } from '@/constants/synagogues';
 import { resolveSynagogueSearchRadiusMeters } from '@/constants/overpass';
 import { typography } from '@/constants/theme';
@@ -282,7 +283,7 @@ export function MapScreen() {
 
   const headerLocationLabel = useMemo(() => {
     if (isFallbackLocation) {
-      return 'מיקום GPS לא זמין — מוצגים בתי כנסת לפי ירושלים';
+      return `מיקום GPS לא זמין — מוצגים בתי כנסת לפי ${DEFAULT_PLACE_NAME}`;
     }
     if (location?.source === 'GPS' && typeof location.accuracy === 'number') {
       return `מיקום מעודכן (±${Math.round(location.accuracy)} מ')`;

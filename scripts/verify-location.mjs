@@ -2,7 +2,7 @@
  * Location service verification.
  * Run: npm run verify:location
  */
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -124,6 +124,46 @@ function main() {
     mapScreen.includes('overpassCenterLatitude') &&
       mapScreen.includes('overpassCenterSource') &&
       mapScreen.includes('setMapDiagnostics'),
+  );
+
+  record(
+    'map: native renderer is recorded in diagnostics',
+    mapScreen.includes("mapRenderer: 'NATIVE_REACT_NATIVE_MAPS'"),
+  );
+
+  record(
+    'map: Android Google provider is platform-gated',
+    mapScreen.includes("Platform.OS === 'android' ? PROVIDER_GOOGLE"),
+  );
+
+  record(
+    'metro: @/ alias resolves AppIcon to an existing source file',
+    read('metro.config.js').includes("startsWith('@/')") &&
+      read('metro.config.js').includes("type: 'sourceFile'") &&
+      existsSync(join(root, 'src/components/common/AppIcon.tsx')),
+  );
+
+  record(
+    'map: Android MapView is not clipped by overflow hidden',
+    !mapScreen.includes('overflow-hidden') &&
+      mapScreen.includes(
+        "overflow: Platform.OS === 'ios' ? 'hidden' : 'visible'",
+      ),
+  );
+
+  record(
+    'map: native screen shows Overpass cache notice',
+    mapScreen.includes('cacheNotice') &&
+      mapScreen.includes('מוצגים בתי כנסת מהמטמון האחרון') === false &&
+      mapScreen.includes('{cacheNotice}'),
+  );
+
+  record(
+    'map: synagogue fetch error is distinct from Google tile failure',
+    mapScreen.includes('OpenStreetMap (Overpass)') &&
+      mapScreen.includes('אריחי Google Maps') &&
+      mapScreen.includes('map_tiles_timed_out') &&
+      mapScreen.includes('map_tiles_loaded'),
   );
 
   record(

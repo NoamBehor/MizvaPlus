@@ -12,6 +12,29 @@ export function getHolidayGuide(holidayKey: string): HolidayGuide | null {
   );
 }
 
+/** True when an existing holiday guide already contains a candle-lighting section. */
+export function holidayGuideHasCandleSection(holidayKey?: string): boolean {
+  if (!holidayKey) {
+    return false;
+  }
+
+  const guide = getHolidayGuide(holidayKey);
+  if (!guide) {
+    return false;
+  }
+
+  const sections = [
+    ...guide.preparation,
+    ...guide.mitzvot,
+    ...(guide.prayers ?? []),
+  ];
+
+  return sections.some(
+    (section) =>
+      section.id.includes('candle') || section.titleHebrew.includes('נרות'),
+  );
+}
+
 export function toLegacyHolidayGuide(guide: HolidayGuide): HolidayGuideLegacy {
   const preparationItems = guide.preparation.flatMap((section) =>
     section.items.map((item) => item.titleHebrew),

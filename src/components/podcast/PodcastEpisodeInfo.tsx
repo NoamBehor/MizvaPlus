@@ -50,7 +50,7 @@ export function PodcastEpisodeInfo({ episode }: PodcastEpisodeInfoProps) {
         {rows.map((row) => (
           <View
             key={row.label}
-            className="flex-row-reverse items-center justify-between"
+            className="flex-row items-center justify-between"
           >
             <Text style={[typography.caption, { color: colors.muted }]}>
               {row.label}

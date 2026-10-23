@@ -12,6 +12,10 @@ interface ProgressBarProps {
   label?: string;
   variant?: ProgressBarVariant;
   showPercentageLabel?: boolean;
+  /** Overrides the default gold or success fill. */
+  fillColor?: string;
+  height?: number;
+  accessibilityLabel?: string;
 }
 
 const BAR_HEIGHT: Record<ProgressBarVariant, number> = {
@@ -24,14 +28,18 @@ export function ProgressBar({
   label,
   variant = 'default',
   showPercentageLabel,
+  fillColor: fillColorOverride,
+  height,
+  accessibilityLabel,
 }: ProgressBarProps) {
   const clampedPercentage = Math.max(0, Math.min(100, percentage));
   const animatedWidth = useRef(new Animated.Value(clampedPercentage)).current;
   const isComplete = clampedPercentage === 100;
   const shouldShowPercentageLabel =
     showPercentageLabel ?? variant === 'default';
-  const fillColor = isComplete ? colors.success : colors.accent;
+  const fillColor = fillColorOverride ?? (isComplete ? colors.success : colors.accent);
   const trackColor = variant === 'hero' ? homeStatCard.track : colors.border;
+  const barHeight = height ?? BAR_HEIGHT[variant];
 
   useEffect(() => {
     Animated.timing(animatedWidth, {
@@ -51,16 +59,17 @@ export function ProgressBar({
       {label ? <Text style={typography.bodySmall}>{label}</Text> : null}
       <View
         accessibilityRole="progressbar"
+        accessibilityLabel={accessibilityLabel}
         accessibilityValue={{
           min: 0,
           max: 100,
           now: clampedPercentage,
         }}
         style={{
-          height: BAR_HEIGHT[variant],
+          height: barHeight,
           width: '100%',
           overflow: 'hidden',
-          borderRadius: BAR_HEIGHT[variant] / 2,
+          borderRadius: barHeight / 2,
           backgroundColor: trackColor,
           direction: 'ltr',
         }}
@@ -69,7 +78,7 @@ export function ProgressBar({
           style={{
             height: '100%',
             width: widthInterpolation,
-            borderRadius: BAR_HEIGHT[variant] / 2,
+            borderRadius: barHeight / 2,
             backgroundColor: fillColor,
           }}
         />

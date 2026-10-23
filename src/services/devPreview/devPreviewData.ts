@@ -1,3 +1,4 @@
+import { DEFAULT_PLACE_COORDINATES } from '@/constants/defaultPlace';
 import { MITZVOT_SEED } from '@/constants/mitzvot';
 import { calculateLevel } from '@/types/gamification';
 import type { MitzvahCompletion, UserMitzvahPreference } from '@/types/mitzvah';
@@ -12,10 +13,10 @@ export const DEV_PREVIEW_LOCAL_USER_KEY = 'dev-preview-local';
 export const DEV_PREVIEW_BANNER = 'מצב תצוגה למפתחים';
 export const DEV_PREVIEW_AUTH_LABEL = 'ללא התחברות';
 
-/** Jerusalem — used for calendar, parasha, and map list preview on web. */
+/** Default place — calendar, parasha, and map preview when GPS is unavailable. */
 export const DEV_PREVIEW_DEFAULT_COORDINATES = {
-  latitude: 31.7683,
-  longitude: 35.2137,
+  latitude: DEFAULT_PLACE_COORDINATES.latitude,
+  longitude: DEFAULT_PLACE_COORDINATES.longitude,
 };
 
 /** Deterministic mitzvah selection for a populated Home / My Mitzvot preview. */

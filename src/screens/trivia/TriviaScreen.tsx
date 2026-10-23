@@ -260,7 +260,7 @@ export function TriviaScreen() {
                   selected: isSelected,
                   disabled: Boolean(feedback) || isCompleted,
                 }}
-                className="flex-row-reverse items-center gap-3 rounded-xl border px-4 py-3"
+                className="flex-row items-center gap-3 rounded-xl border px-4 py-3"
                 style={{
                   borderColor,
                   backgroundColor,

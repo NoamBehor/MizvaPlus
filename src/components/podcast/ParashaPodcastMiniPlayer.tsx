@@ -109,7 +109,7 @@ export function ParashaPodcastMiniPlayer() {
       }}
     >
       <View
-        className="flex-row-reverse items-center"
+        className="flex-row items-center"
         style={{
           ...shadows.card,
           borderRadius: borderRadius.xl,
@@ -144,7 +144,7 @@ export function ParashaPodcastMiniPlayer() {
           onPress={navigateToParashaPodcastPlayer}
           accessibilityRole="button"
           accessibilityLabel={`פתיחת נגן פרשת ${episode.hebrewTitle}`}
-          style={{ flex: 1, alignItems: 'flex-end' }}
+          style={{ flex: 1, alignItems: 'flex-start' }}
         >
           <Text style={typography.label} numberOfLines={1}>
             {episode.hebrewTitle}

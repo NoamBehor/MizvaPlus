@@ -3,6 +3,7 @@ import {
   OVERPASS_CACHE_TTL_MS,
   OVERPASS_ENDPOINTS,
   OVERPASS_MAX_RADIUS_METERS,
+  OVERPASS_SAME_ENDPOINT_RETRY_DELAY_MS,
   OVERPASS_USER_AGENT,
   resolveOverpassQueryTimeoutSeconds,
   resolveOverpassRequestTimeoutMs,
@@ -134,15 +135,9 @@ export function buildOverpassQuery(
 
   return `[out:json][timeout:${queryTimeoutSeconds}];
 (
-  node["amenity"="place_of_worship"]["religion"~"^(jewish|judaism)$"](around:${around});
-  way["amenity"="place_of_worship"]["religion"~"^(jewish|judaism)$"](around:${around});
-  relation["amenity"="place_of_worship"]["religion"~"^(jewish|judaism)$"](around:${around});
-  node["building"="synagogue"](around:${around});
-  way["building"="synagogue"](around:${around});
-  relation["building"="synagogue"](around:${around});
-  node["amenity"="synagogue"](around:${around});
-  way["amenity"="synagogue"](around:${around});
-  relation["amenity"="synagogue"](around:${around});
+  nwr["amenity"="place_of_worship"]["religion"~"^(jewish|judaism)$"](around:${around});
+  nwr["building"="synagogue"](around:${around});
+  nwr["amenity"="synagogue"](around:${around});
 );
 out center tags;`;
 }
@@ -311,6 +306,7 @@ async function requestOverpassEndpoint(
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
+      'Accept': 'application/json',
       'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
       'User-Agent': OVERPASS_USER_AGENT,
     },
@@ -456,113 +452,135 @@ async function executeOverpassRequest(
   const failures: string[] = [];
   let attemptIndex = 0;
 
+  function waitForSameEndpointRetry(): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, OVERPASS_SAME_ENDPOINT_RETRY_DELAY_MS);
+    });
+  }
+
   for (const endpoint of OVERPASS_ENDPOINTS) {
-    const startedAt = Date.now();
-    const controller = new AbortController();
-    let abortedByClientTimeout = false;
+    let retriedSameEndpoint = false;
 
-    const timeoutId = setTimeout(() => {
-      abortedByClientTimeout = true;
-      controller.abort();
-    }, requestTimeoutMs);
+    while (true) {
+      const startedAt = Date.now();
+      const controller = new AbortController();
+      let abortedByClientTimeout = false;
 
-    try {
-      const { payload, httpStatus, responseSize } = await requestOverpassEndpoint(
-        endpoint,
-        query,
-        controller.signal,
-      );
+      const timeoutId = setTimeout(() => {
+        abortedByClientTimeout = true;
+        controller.abort();
+      }, requestTimeoutMs);
 
-      const synagogues = parseOverpassResponse(payload, coordinates);
-      const rawElementCount = Array.isArray(
-        (payload as OverpassResponse).elements,
-      )
-        ? (payload as OverpassResponse).elements!.length
-        : 0;
-      const endedAt = Date.now();
-
-      recordOverpassEndpointAttempt({
-        endpoint,
-        startedAt,
-        endedAt,
-        durationMs: endedAt - startedAt,
-        abortControllerCreated: true,
-        abortControllerAborted: controller.signal.aborted,
-        timeoutMs: requestTimeoutMs,
-        abortedByClientTimeout,
-        abortReason: abortedByClientTimeout ? 'CLIENT_TIMEOUT' : null,
-        httpStatus,
-        networkErrorName: null,
-        networkErrorMessage: null,
-        classification: 'UNKNOWN',
-        status: 'SUCCESS',
-      });
-
-      setFetchMeta({
-        source: 'LIVE',
-        cacheHit: false,
-        cacheStale: false,
-        elementCount: synagogues.length,
-        radiusMeters,
-      });
-
-      logOverpassDiagnostics({
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        radiusMeters,
-        endpoint,
-        httpStatus,
-        responseSize,
-        rawElementCount,
-        normalizedCount: synagogues.length,
-      });
-
-      completeOverpassDiagnosticsSession({
-        successfulEndpoint: endpoint,
-        fallbackEndpoint: attemptIndex > 0 ? endpoint : null,
-        fallbackUsed: attemptIndex > 0,
-        finalResult: 'SUCCESS',
-        elementCount: synagogues.length,
-        cacheHit: false,
-        cacheStale: false,
-        finalSource: 'LIVE',
-      });
-
-      if (__DEV__) {
-        logDiagnosticEvent('MAP', 'overpass_fetch_success', 'info', {
+      try {
+        const { payload, httpStatus, responseSize } = await requestOverpassEndpoint(
           endpoint,
+          query,
+          controller.signal,
+        );
+
+        const synagogues = parseOverpassResponse(payload, coordinates);
+        const rawElementCount = Array.isArray(
+          (payload as OverpassResponse).elements,
+        )
+          ? (payload as OverpassResponse).elements!.length
+          : 0;
+        const endedAt = Date.now();
+
+        recordOverpassEndpointAttempt({
+          endpoint,
+          startedAt,
+          endedAt,
           durationMs: endedAt - startedAt,
-          fallbackUsed: attemptIndex > 0,
+          abortControllerCreated: true,
+          abortControllerAborted: controller.signal.aborted,
+          timeoutMs: requestTimeoutMs,
+          abortedByClientTimeout,
+          abortReason: abortedByClientTimeout ? 'CLIENT_TIMEOUT' : null,
+          httpStatus,
+          networkErrorName: null,
+          networkErrorMessage: null,
+          classification: 'UNKNOWN',
+          status: 'SUCCESS',
+        });
+
+        setFetchMeta({
+          source: 'LIVE',
+          cacheHit: false,
+          cacheStale: false,
+          elementCount: synagogues.length,
+          radiusMeters,
+        });
+
+        logOverpassDiagnostics({
+          latitude: coordinates.latitude,
+          longitude: coordinates.longitude,
+          radiusMeters,
+          endpoint,
+          httpStatus,
+          responseSize,
+          rawElementCount,
           normalizedCount: synagogues.length,
         });
-      }
 
-      return synagogues;
-    } catch (error) {
-      failures.push(
-        recordEndpointFailure(
-          endpoint,
-          error,
-          startedAt,
-          requestTimeoutMs,
-          abortedByClientTimeout,
-          controller.signal.aborted,
-        ),
-      );
-
-      const status = (error as Error & { status?: number }).status;
-      if (typeof status === 'number' && !isRetryableOverpassHttpStatus(status)) {
         completeOverpassDiagnosticsSession({
-          successfulEndpoint: null,
-          fallbackEndpoint: null,
-          fallbackUsed: false,
-          finalResult: 'ALL_FAILED',
+          successfulEndpoint: endpoint,
+          fallbackEndpoint: attemptIndex > 0 ? endpoint : null,
+          fallbackUsed: attemptIndex > 0,
+          finalResult: 'SUCCESS',
+          elementCount: synagogues.length,
+          cacheHit: false,
+          cacheStale: false,
+          finalSource: 'LIVE',
         });
-        throw error;
+
+        if (__DEV__) {
+          logDiagnosticEvent('MAP', 'overpass_fetch_success', 'info', {
+            endpoint,
+            durationMs: endedAt - startedAt,
+            fallbackUsed: attemptIndex > 0,
+            normalizedCount: synagogues.length,
+          });
+        }
+
+        return synagogues;
+      } catch (error) {
+        failures.push(
+          recordEndpointFailure(
+            endpoint,
+            error,
+            startedAt,
+            requestTimeoutMs,
+            abortedByClientTimeout,
+            controller.signal.aborted,
+          ),
+        );
+
+        const status = (error as Error & { status?: number }).status;
+        if (
+          typeof status === 'number' &&
+          isRetryableOverpassHttpStatus(status) &&
+          !retriedSameEndpoint
+        ) {
+          retriedSameEndpoint = true;
+          await waitForSameEndpointRetry();
+          continue;
+        }
+
+        if (typeof status === 'number' && !isRetryableOverpassHttpStatus(status)) {
+          completeOverpassDiagnosticsSession({
+            successfulEndpoint: null,
+            fallbackEndpoint: null,
+            fallbackUsed: false,
+            finalResult: 'ALL_FAILED',
+          });
+          throw error;
+        }
+
+        break;
+      } finally {
+        clearTimeout(timeoutId);
+        attemptIndex += 1;
       }
-    } finally {
-      clearTimeout(timeoutId);
-      attemptIndex += 1;
     }
   }
 
@@ -616,12 +634,12 @@ export async function fetchNearbySynagoguesFromOverpass(
   }
 
   const request = executeOverpassRequest(coordinates, effectiveRadiusMeters)
-    .then((result) => {
+    .then(async (result) => {
       resultCache.set(cacheKey, {
         result,
         expiresAt: Date.now() + OVERPASS_CACHE_TTL_MS,
       });
-      writeOverpassPersistentCache({
+      await writeOverpassPersistentCache({
         cacheKey: persistentCacheKey,
         latitude: coordinates.latitude,
         longitude: coordinates.longitude,
@@ -630,8 +648,8 @@ export async function fetchNearbySynagoguesFromOverpass(
       });
       return result;
     })
-    .catch((error) => {
-      const persistent = readOverpassPersistentCache(persistentCacheKey);
+    .catch(async (error) => {
+      const persistent = await readOverpassPersistentCache(persistentCacheKey);
       if (persistent) {
         const source: OverpassFinalSource = persistent.isStale
           ? 'PERSISTENT_CACHE_STALE'

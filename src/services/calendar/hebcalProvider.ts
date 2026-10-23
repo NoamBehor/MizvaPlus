@@ -29,6 +29,7 @@ import {
   getShabbatDateKeyForWeek,
   isParashaEvent,
 } from '@/utils/parasha';
+import { DEFAULT_PLACE_COORDINATES, DEFAULT_PLACE_NAME } from '@/constants/defaultPlace';
 import {
   formatIsraelTime,
   getCalendarDateKey,
@@ -53,11 +54,16 @@ const HEBREW_MONTH_NAMES = [
   'אדר ב׳',
 ];
 
-const FALLBACK_LOCATION_LABEL = 'ירושלים (מיקום ברירת מחדל)';
+const FALLBACK_LOCATION_LABEL = `${DEFAULT_PLACE_NAME} (מיקום ברירת מחדל)`;
 
-const DEFAULT_LOCATION =
-  Location.lookup('Jerusalem') ??
-  new Location(31.7683, 35.2137, true, ISRAEL_TIMEZONE, 'Jerusalem', 'IL');
+const DEFAULT_LOCATION = new Location(
+  DEFAULT_PLACE_COORDINATES.latitude,
+  DEFAULT_PLACE_COORDINATES.longitude,
+  true,
+  ISRAEL_TIMEZONE,
+  DEFAULT_PLACE_NAME,
+  'IL',
+);
 
 const yearEventsCache = new Map<string, Event[]>();
 
@@ -456,6 +462,18 @@ export function getResolvedLocationSource(
   locationInput?: CalendarLocationInput,
 ): CalendarLocationSource {
   return resolveLocation(locationInput).source;
+}
+
+/**
+ * Same location the calendar already resolved. Read-only for zmanim display.
+ * Does not change event or parasha calculation.
+ */
+export function getCalendarLocation(locationInput?: CalendarLocationInput): {
+  location: Location;
+  source: CalendarLocationSource;
+  label: string;
+} {
+  return resolveLocation(locationInput);
 }
 
 /** Test helper: build parasha from a raw Hebcal event. */

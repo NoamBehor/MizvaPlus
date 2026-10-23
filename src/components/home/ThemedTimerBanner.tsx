@@ -1,17 +1,20 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Easing, Text, View } from 'react-native';
+import { useEffect, useRef } from 'react';
+import { Animated, Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import { borderRadius, shadows, spacing, typography } from '@/constants/theme';
+import { AppIcon } from '@/components/common/AppIcon';
+import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
+import { homeFonts, homeTheme } from '@/constants/homeTheme';
+import { borderRadius, spacing, typography } from '@/constants/theme';
+import { ltrLayoutStyle } from '@/constants/layoutDirection';
 import {
-  getTimerContextChipLabel,
   getTimerTheme,
   type TimerDecorativeMode,
   type TimerThemeKey,
 } from '@/constants/timerThemes';
 import { formatCountdown } from '@/utils/time';
 
-const HERO_MIN_HEIGHT = 200;
+const HERO_MIN_HEIGHT = 220;
 
 interface ThemedTimerBannerProps {
   heroLabel: string;
@@ -21,37 +24,34 @@ interface ThemedTimerBannerProps {
   themeKey: TimerThemeKey;
   isActiveFast?: boolean;
   fastProgress?: number | null;
-  locationFootnote?: string | null;
+  locationLine?: string | null;
+  locationAccessibilityLabel?: string;
+  onOpenLocation?: () => void;
+  actionLabel?: string;
+  onAction?: () => void;
 }
-
-const STAR_POSITIONS: Array<{
-  top: `${number}%`;
-  left?: `${number}%`;
-  right?: `${number}%`;
-  size: number;
-}> = [
-  { top: '14%', left: '12%', size: 3 },
-  { top: '22%', right: '16%', size: 2 },
-  { top: '68%', left: '18%', size: 2 },
-  { top: '74%', right: '12%', size: 3 },
-  { top: '42%', left: '8%', size: 2 },
-];
 
 export function ThemedTimerBanner({
   heroLabel,
-  title,
   displayTime,
   totalSeconds,
   themeKey,
   isActiveFast = false,
   fastProgress = null,
-  locationFootnote = null,
+  locationLine = null,
+  locationAccessibilityLabel,
+  onOpenLocation,
+  actionLabel,
+  onAction,
 }: ThemedTimerBannerProps) {
+  const fontsLoaded = useHomeFonts();
   const theme = getTimerTheme(themeKey, { isActiveFast });
-  const contextChipLabel = getTimerContextChipLabel(themeKey);
+  const countdownLabel = formatCountdown(totalSeconds);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const minuteAnnouncement = `זמן שנותר ${hours} שעות ו-${minutes} דקות`;
   const progressDegrees =
     fastProgress !== null ? Math.round(fastProgress * 360) : 0;
-  const countdownLabel = formatCountdown(totalSeconds);
 
   return (
     <LinearGradient
@@ -59,205 +59,190 @@ export function ThemedTimerBanner({
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
       style={[
-        shadows.hero,
+        homeTheme.heroShadow,
         {
-          borderRadius: borderRadius.xxl,
+          borderRadius: homeTheme.heroRadius,
           minHeight: HERO_MIN_HEIGHT,
-          paddingVertical: spacing.xl,
-          paddingHorizontal: spacing.lg,
+          padding: spacing.lg,
           overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.1)',
         },
       ]}
     >
       <TimerDecorations mode={theme.decorativeMode} accent={theme.accent} />
 
-      {contextChipLabel ? (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
         <View
           style={{
-            alignSelf: 'center',
+            flex: 1,
             flexDirection: 'row',
             alignItems: 'center',
-            justifyContent: 'center',
-            gap: spacing.xs,
+            gap: 6,
             paddingHorizontal: spacing.sm,
-            paddingVertical: spacing.xs,
+            paddingVertical: 6,
             borderRadius: borderRadius.full,
-            backgroundColor: 'rgba(255, 255, 255, 0.12)',
-            marginBottom: spacing.md,
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.15)',
           }}
         >
-          {theme.icon ? (
-            <Text style={{ fontSize: 13, opacity: 0.9 }}>{theme.icon}</Text>
-          ) : null}
+          <AppIcon name="flame" size={14} color={theme.accent} />
           <Text
+            numberOfLines={1}
             style={[
-              typography.label,
-              {
-                color: theme.labelColor,
-                fontSize: 12,
-                textAlign: 'center',
-                writingDirection: 'rtl',
-              },
+              typography.caption,
+              homeFontStyle(fontsLoaded, homeFonts.semibold),
+              { color: theme.accent, flexShrink: 1 },
             ]}
           >
-            {contextChipLabel}
+            {heroLabel}
           </Text>
         </View>
-      ) : null}
+        {onOpenLocation ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="הגדרת זמני עיר"
+            onPress={onOpenLocation}
+            hitSlop={10}
+            style={{
+              width: 32,
+              height: 32,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <AppIcon name="sliders" size={16} color="rgba(255,255,255,0.75)" />
+          </Pressable>
+        ) : null}
+      </View>
 
-      <Text
-        accessibilityRole="header"
-        style={[
-          typography.subtitle,
-          {
-            color: theme.labelColor,
-            textAlign: 'center',
-            writingDirection: 'rtl',
-            marginBottom: spacing.md,
-            fontWeight: '600',
-          },
-        ]}
-      >
-        {heroLabel}
-      </Text>
-
-      {title && heroLabel !== title ? (
+      {locationLine ? (
         <Text
+          accessibilityRole="text"
+          accessibilityLabel={locationAccessibilityLabel ?? locationLine}
           style={[
             typography.bodySmall,
+            homeFontStyle(fontsLoaded, homeFonts.semibold),
             {
               color: theme.labelColor,
               textAlign: 'center',
               writingDirection: 'rtl',
-              marginBottom: spacing.sm,
-              opacity: 0.9,
+              marginTop: spacing.md,
             },
           ]}
         >
-          {title}
+          {locationLine}
+          {displayTime ? (
+            <Text style={{ color: theme.textColor, fontVariant: ['tabular-nums'] }}>
+              {` ${displayTime}`}
+            </Text>
+          ) : null}
         </Text>
       ) : null}
 
-      <View
-        className="items-center justify-center"
-        style={{ alignSelf: 'stretch', flex: 1 }}
-      >
+      <View style={{ alignItems: 'center', marginVertical: spacing.md }}>
         {isActiveFast && fastProgress !== null ? (
           <View
+            accessibilityElementsHidden
+            importantForAccessibility="no"
             style={{
-              width: 88,
-              height: 88,
-              borderRadius: 44,
-              borderWidth: 4,
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              borderWidth: 3,
               borderColor: 'rgba(255,255,255,0.2)',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: spacing.md,
+              marginBottom: spacing.sm,
             }}
           >
             <View
               style={{
                 position: 'absolute',
-                width: 88,
-                height: 88,
-                borderRadius: 44,
-                borderWidth: 4,
+                width: 56,
+                height: 56,
+                borderRadius: 28,
+                borderWidth: 3,
                 borderColor: theme.accent,
                 borderTopColor: 'transparent',
-                borderRightColor:
-                  progressDegrees > 90 ? theme.accent : 'transparent',
-                borderBottomColor:
-                  progressDegrees > 180 ? theme.accent : 'transparent',
-                borderLeftColor:
-                  progressDegrees > 270 ? theme.accent : 'transparent',
+                borderRightColor: progressDegrees > 90 ? theme.accent : 'transparent',
+                borderBottomColor: progressDegrees > 180 ? theme.accent : 'transparent',
+                borderLeftColor: progressDegrees > 270 ? theme.accent : 'transparent',
                 transform: [{ rotate: '-90deg' }],
               }}
             />
-            <Text
-              style={[
-                typography.bodySmall,
-                {
-                  color: theme.labelColor,
-                  fontSize: 11,
-                  textAlign: 'center',
-                },
-              ]}
-            >
+            <Text style={[typography.caption, { color: theme.labelColor }]}>
               {Math.round(fastProgress * 100)}%
             </Text>
           </View>
         ) : null}
 
-        <Text
-          accessibilityRole="timer"
-          accessibilityLabel={`זמן שנותר: ${countdownLabel}`}
-          style={[
-            typography.countdown,
-            {
-              color: theme.textColor,
-              fontSize: 48,
-              lineHeight: 54,
-              letterSpacing: 2,
-            },
-          ]}
-        >
-          {countdownLabel}
-        </Text>
-
-        {displayTime ? (
+        <View style={ltrLayoutStyle}>
           <Text
+            importantForAccessibility="no"
             style={[
-              typography.body,
+              homeFontStyle(fontsLoaded, homeFonts.display),
               {
-                color: theme.labelColor,
-                marginTop: spacing.sm,
+                color: theme.accent,
+                fontSize: 48,
+                lineHeight: 56,
+                fontWeight: '800',
                 textAlign: 'center',
-                writingDirection: 'rtl',
-                fontWeight: '500',
+                fontVariant: ['tabular-nums'],
               },
             ]}
           >
-            {displayTime}
+            {countdownLabel}
           </Text>
-        ) : null}
+        </View>
+        <Text
+          accessibilityRole="timer"
+          accessibilityLabel={minuteAnnouncement}
+          style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
+        >
+          {minuteAnnouncement}
+        </Text>
+        <Text
+          importantForAccessibility="no"
+          style={[
+            typography.caption,
+            { color: theme.labelColor, marginTop: 4, textAlign: 'center' },
+          ]}
+        >
+          שעות : דקות : שניות
+        </Text>
       </View>
 
-      {locationFootnote ? (
-        <View
-          accessibilityRole="text"
-          accessibilityLabel={`מיקום לחישוב זמנים: ${locationFootnote}`}
+      {actionLabel && onAction ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          onPress={onAction}
           style={{
-            flexDirection: 'row',
+            minHeight: 44,
+            borderRadius: 12,
+            backgroundColor: 'rgba(255,255,255,0.1)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.2)',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: spacing.xs,
-            marginTop: spacing.lg,
-            paddingTop: spacing.sm,
-            borderTopWidth: 1,
-            borderTopColor: 'rgba(255, 255, 255, 0.12)',
+            flexDirection: 'row',
+            gap: spacing.sm,
+            paddingHorizontal: spacing.md,
           }}
         >
-          <Text
-            accessibilityElementsHidden
-            importantForAccessibility="no"
-            style={{ fontSize: 11, color: theme.labelColor, opacity: 0.85 }}
-          >
-            📍
-          </Text>
+          <AppIcon name="sparkles" size={16} color={theme.accent} />
           <Text
             style={[
               typography.caption,
-              {
-                color: theme.labelColor,
-                textAlign: 'center',
-                writingDirection: 'rtl',
-                opacity: 0.9,
-              },
+              homeFontStyle(fontsLoaded, homeFonts.semibold),
+              { color: theme.textColor },
             ]}
           >
-            {locationFootnote}
+            {actionLabel}
           </Text>
-        </View>
+        </Pressable>
       ) : null}
     </LinearGradient>
   );
@@ -322,13 +307,13 @@ export function TimerHeroSkeleton({
   return (
     <View
       style={[
-        shadows.hero,
+        homeTheme.heroShadow,
         {
-          borderRadius: borderRadius.xxl,
+          borderRadius: homeTheme.heroRadius,
           minHeight: HERO_MIN_HEIGHT,
           paddingVertical: spacing.xl,
           paddingHorizontal: spacing.lg,
-          backgroundColor: '#1B2A4A',
+          backgroundColor: homeTheme.navy,
           alignItems: 'center',
           justifyContent: 'center',
           gap: spacing.md,
@@ -337,27 +322,21 @@ export function TimerHeroSkeleton({
       accessibilityRole="progressbar"
       accessibilityLabel="טוען טיימר"
     >
-      <TimerSkeletonBlock width={72} height={24} style={{ borderRadius: borderRadius.full }} />
-      <TimerSkeletonBlock width="55%" height={22} />
-      <TimerSkeletonBlock width={180} height={48} style={{ marginVertical: spacing.sm }} />
-      <TimerSkeletonBlock width="45%" height={18} />
-      {showLocationLine ? (
-        <TimerSkeletonBlock
-          width="60%"
-          height={12}
-          style={{ marginTop: spacing.lg }}
-        />
-      ) : null}
+      <TimerSkeletonBlock width={140} height={24} style={{ borderRadius: borderRadius.full }} />
+      <TimerSkeletonBlock width="55%" height={18} />
+      <TimerSkeletonBlock width={180} height={48} />
+      {showLocationLine ? <TimerSkeletonBlock width="40%" height={12} /> : null}
     </View>
   );
 }
 
-interface TimerDecorationsProps {
+function TimerDecorations({
+  mode,
+  accent,
+}: {
   mode: TimerDecorativeMode;
   accent: string;
-}
-
-function TimerDecorations({ mode, accent }: TimerDecorationsProps) {
+}) {
   if (mode === 'none') {
     return null;
   }
@@ -367,195 +346,31 @@ function TimerDecorations({ mode, accent }: TimerDecorationsProps) {
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        bottom: 0,
-        left: 0,
-      }}
+      style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }}
     >
-      {mode === 'candles' ? <CandleGlow accent={accent} /> : null}
-      {mode === 'pomegranate' ? <FloatingMotif accent={accent} symbol="🍎" /> : null}
-      {mode === 'harvest' ? <FloatingMotif accent={accent} symbol="🌿" /> : null}
-      {mode === 'stars' ? <StarField accent={accent} /> : null}
-    </View>
-  );
-}
-
-function CandleGlow({ accent }: { accent: string }) {
-  const glow = useRef(new Animated.Value(0.28)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, {
-          toValue: 0.48,
-          duration: 4200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(glow, {
-          toValue: 0.28,
-          duration: 4200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    animation.start();
-    return () => {
-      animation.stop();
-    };
-  }, [glow]);
-
-  return (
-    <>
-      <Animated.View
-        style={{
-          position: 'absolute',
-          top: 18,
-          right: 24,
-          width: 44,
-          height: 44,
-          borderRadius: 22,
-          backgroundColor: accent,
-          opacity: glow,
-        }}
-      />
-      <Animated.View
-        style={{
-          position: 'absolute',
-          top: 18,
-          left: 24,
-          width: 36,
-          height: 36,
-          borderRadius: 18,
-          backgroundColor: accent,
-          opacity: glow,
-        }}
-      />
-      <Text style={{ position: 'absolute', top: 12, right: 30, fontSize: 18, opacity: 0.7 }}>
-        🕯️
-      </Text>
-      <Text style={{ position: 'absolute', top: 12, left: 28, fontSize: 16, opacity: 0.7 }}>
-        🕯️
-      </Text>
-    </>
-  );
-}
-
-function FloatingMotif({ accent, symbol }: { accent: string; symbol: string }) {
-  const drift = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(drift, {
-          toValue: 1,
-          duration: 5200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(drift, {
-          toValue: 0,
-          duration: 5200,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    animation.start();
-    return () => {
-      animation.stop();
-    };
-  }, [drift]);
-
-  const translateY = drift.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, -3],
-  });
-
-  return (
-    <>
-      <Animated.Text
-        style={{
-          position: 'absolute',
-          top: 16,
-          right: 20,
-          fontSize: 20,
-          opacity: 0.32,
-          transform: [{ translateY }],
-        }}
-      >
-        {symbol}
-      </Animated.Text>
       <View
         style={{
           position: 'absolute',
-          bottom: 18,
-          left: 22,
-          width: 28,
-          height: 28,
-          borderRadius: 14,
-          borderWidth: 1,
-          borderColor: accent,
-          opacity: 0.18,
+          top: -40,
+          right: -30,
+          width: 160,
+          height: 160,
+          borderRadius: 80,
+          backgroundColor: 'rgba(59, 130, 246, 0.18)',
         }}
       />
-    </>
+      <View
+        style={{
+          position: 'absolute',
+          bottom: -50,
+          left: -20,
+          width: 140,
+          height: 140,
+          borderRadius: 70,
+          backgroundColor: accent,
+          opacity: 0.12,
+        }}
+      />
+    </View>
   );
-}
-
-function StarField({ accent }: { accent: string }) {
-  const twinkle = useRef(new Animated.Value(0.12)).current;
-
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(twinkle, {
-          toValue: 0.32,
-          duration: 3600,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-        Animated.timing(twinkle, {
-          toValue: 0.1,
-          duration: 3600,
-          easing: Easing.inOut(Easing.sin),
-          useNativeDriver: true,
-        }),
-      ]),
-    );
-
-    animation.start();
-    return () => {
-      animation.stop();
-    };
-  }, [twinkle]);
-
-  const stars = useMemo(
-    () =>
-      STAR_POSITIONS.map((star, index) => (
-        <Animated.View
-          key={`star-${index}`}
-          style={{
-            position: 'absolute',
-            width: star.size,
-            height: star.size,
-            borderRadius: star.size,
-            backgroundColor: accent,
-            opacity: twinkle,
-            top: star.top,
-            left: star.left,
-            right: star.right,
-          }}
-        />
-      )),
-    [accent, twinkle],
-  );
-
-  return <>{stars}</>;
 }

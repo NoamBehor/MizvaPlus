@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { DailyLearningCard } from '@/components/home/DailyLearningCard';
 import { DailyTriviaCard } from '@/components/home/DailyTriviaCard';
 import { GreetingHeader } from '@/components/home/GreetingHeader';
+import { HalachicTimesBar } from '@/components/home/HalachicTimesBar';
 import { HolidayPrepCard } from '@/components/home/HolidayPrepCard';
 import { NextEventCard } from '@/components/home/NextEventCard';
-import { ProgressSummary } from '@/components/home/ProgressSummary';
 import { StatsRow } from '@/components/home/StatsRow';
 import { TodayMitzvotCard } from '@/components/home/TodayMitzvotCard';
 import { ParashaPodcastCard } from '@/components/podcast/ParashaPodcastCard';
 import { WeeklyParashaCard } from '@/components/home/WeeklyParashaCard';
 import { ScreenContainer } from '@/components/common/ScreenContainer';
+import { homeTheme } from '@/constants/homeTheme';
 import { spacing } from '@/constants/theme';
 import { useParashaPodcastContextOptional } from '@/context/ParashaPodcastContext';
 import { useHebrewCalendar } from '@/hooks/useHebrewCalendar';
@@ -19,7 +21,12 @@ import { useHomeDiagnosticsCapture } from '@/hooks/useHomeDiagnosticsCapture';
 import { useNextUpcomingEvent } from '@/hooks/useNextUpcomingEvent';
 import { useNotificationSync } from '@/hooks/useNotificationSync';
 import { useZmanimLocation } from '@/hooks/useZmanimLocation';
-import { navigateToMitzvahDetail, navigateToMyMitzvot } from '@/navigation/navigationRef';
+import {
+  navigateToMitzvahDetail,
+  navigateToMyMitzvot,
+  navigateToParashaPodcastPlayer,
+} from '@/navigation/navigationRef';
+import { getDailyHalachicTimes } from '@/services/calendar/dailyZmanim';
 import { filterEnabledActiveMitzvotForToday } from '@/services/calendarMitzvot';
 import { calendarService } from '@/services/calendar';
 import { getHolidayContext } from '@/services/holidayContext';
@@ -37,6 +44,10 @@ export function HomeScreen() {
   const preferences = useMitzvahStore((state) => state.preferences);
   const preferencesRevision = useMitzvahStore((state) => state.preferencesRevision);
   const completions = useMitzvahStore((state) => state.completions);
+  const markMitzvahComplete = useMitzvahStore((state) => state.markMitzvahComplete);
+  const unmarkMitzvahCompleteToday = useMitzvahStore(
+    (state) => state.unmarkMitzvahCompleteToday,
+  );
 
   const { calendarInput, zmanimLocation, isResolving: isZmanimResolving } =
     useZmanimLocation();
@@ -64,6 +75,9 @@ export function HomeScreen() {
     holidayKey: string;
     expanded: boolean;
   } | null>(null);
+  const [candleExpandSignal, setCandleExpandSignal] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const holidayOffsetY = useRef(0);
 
   useFocusEffect(
     useCallback(() => {
@@ -179,6 +193,56 @@ export function HomeScreen() {
     navigateToMyMitzvot();
   }, []);
 
+  const handleToggleMitzvah = useCallback(
+    (mitzvahId: string) => {
+      if (!user) {
+        return;
+      }
+      if (isCompletedToday(mitzvahId)) {
+        void unmarkMitzvahCompleteToday(user.id, mitzvahId);
+        return;
+      }
+      void markMitzvahComplete(user.id, mitzvahId);
+    },
+    [isCompletedToday, markMitzvahComplete, unmarkMitzvahCompleteToday, user],
+  );
+
+  const getCompletedAt = useCallback(
+    (mitzvahId: string) => {
+      if (!user) {
+        return null;
+      }
+      const today = getActivityDateKey();
+      return (
+        completions.find(
+          (completion) =>
+            completion.userId === user.id &&
+            completion.mitzvahId === mitzvahId &&
+            completion.completionDate === today,
+        )?.completedAt ?? null
+      );
+    },
+    [completions, user],
+  );
+
+  const halachicTimes = useMemo(
+    () =>
+      getDailyHalachicTimes(
+        calendarInput,
+      ),
+    [calendarInput?.latitude, calendarInput?.longitude],
+  );
+
+  const openCandleGuide = useCallback(() => {
+    setCandleExpandSignal((value) => value + 1);
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({
+        y: Math.max(0, holidayOffsetY.current - spacing.sm),
+        animated: true,
+      });
+    });
+  }, []);
+
   const miniPlayerScrollInset =
     podcast?.episode && podcast.hasActiveSession ? 64 + spacing.sm : 0;
 
@@ -187,35 +251,61 @@ export function HomeScreen() {
   }
 
   return (
-    <ScreenContainer extraScrollBottomInset={miniPlayerScrollInset}>
-      <GreetingHeader displayName={user.displayName} />
-      <NextEventCard />
-      <ProgressSummary
-        completed={progress.completed}
-        total={progress.total}
-        percentage={progress.percentage}
+    <ScreenContainer
+      extraScrollBottomInset={miniPlayerScrollInset}
+      backgroundColor={homeTheme.canvas}
+      horizontalPadding={20}
+      scrollRef={scrollRef}
+    >
+      <GreetingHeader
+        displayName={user.displayName}
+        hebrewDate={dayInfo?.hebrewDate.displayString}
       />
+      <NextEventCard onOpenCandleGuide={openCandleGuide} />
       <WeeklyParashaCard
         dayInfo={dayInfo}
         isLoading={isCalendarLoading || isZmanimResolving}
         isRefreshing={isCalendarLoading && Boolean(dayInfo?.weeklyParasha)}
         calendarError={calendarError}
+        onOpen={podcast?.episode ? navigateToParashaPodcastPlayer : undefined}
+      />
+      <HalachicTimesBar
+        times={isZmanimResolving && !zmanimLocation ? [] : halachicTimes.times}
+        calculationNote={halachicTimes.calculationNote}
+        locationLabel={halachicTimes.locationLabel}
+        isLoading={isZmanimResolving && !zmanimLocation}
+      />
+      <StatsRow
+        streakCount={user.streakCount}
+        xp={user.xp}
+        userId={user.id}
+        completions={completions}
       />
       <TodayMitzvotCard
         mitzvot={activeMitzvot}
+        completedCount={progress.completed}
+        totalCount={progress.total}
+        progressPercentage={progress.percentage}
+        streakCount={user.streakCount}
         isCompleted={isCompletedToday}
+        getCompletedAt={getCompletedAt}
         onOpenMitzvah={handleOpenMitzvah}
+        onToggleMitzvah={handleToggleMitzvah}
         onSelectMitzvot={handleSelectMitzvot}
       />
+      <DailyLearningCard userId={user.id} />
       <HolidayPrepCard
         context={holidayContext}
         overrideHolidayKey={forcedHolidayGuide?.holidayKey}
         initialExpanded={forcedHolidayGuide?.expanded ?? false}
+        expandSignal={candleExpandSignal}
+        forceVisible={candleExpandSignal > 0}
+        onLayoutY={(y) => {
+          holidayOffsetY.current = y;
+        }}
       />
       <DailyTriviaCard userId={user.id} />
-      <DailyLearningCard userId={user.id} />
       <ParashaPodcastCard dayInfo={dayInfo} isLoading={isCalendarLoading} />
-      <StatsRow streakCount={user.streakCount} xp={user.xp} />
     </ScreenContainer>
   );
 }

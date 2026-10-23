@@ -97,8 +97,10 @@ function runMapsTests() {
   const overpassSrc = read('src/services/overpass.ts');
 
   record(
-    'P10.9-B: MapView uses default provider (Apple Maps on iOS)',
-    mapSrc.includes('react-native-maps') && !mapSrc.includes('PROVIDER_GOOGLE'),
+    'P10.9-B: MapView uses Google provider on Android only (MapKit on iOS)',
+    mapSrc.includes('react-native-maps') &&
+      mapSrc.includes("Platform.OS === 'android' ? PROVIDER_GOOGLE") &&
+      !mapSrc.toLowerCase().includes('google places'),
   );
 
   record(

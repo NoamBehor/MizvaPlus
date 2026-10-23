@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import {
   ThemedTimerBanner,
   TimerHeroSkeleton,
 } from '@/components/home/ThemedTimerBanner';
-import { ZmanimLocationStatus } from '@/components/home/ZmanimLocationStatus';
-import { borderRadius, shadows, spacing, typography } from '@/constants/theme';
+import { LocationSourceSheet } from '@/components/home/ZmanimLocationStatus';
+import { DEFAULT_PLACE_NAME } from '@/constants/defaultPlace';
+import { shadows, spacing, typography } from '@/constants/theme';
 import {
   getTimerTheme,
   resolveTimerTheme,
@@ -16,18 +17,45 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { useNextUpcomingEvent } from '@/hooks/useNextUpcomingEvent';
 import { useZmanimLocation } from '@/hooks/useZmanimLocation';
 import {
+  formatZmanimLocationDisplayLabel,
   getLocationAgeMs,
+  type ZmanimLocation,
 } from '@/services/zmanimLocation';
 import { useDiagnosticsStore } from '@/store/diagnosticsStore';
-import { toUpcomingEventDisplay } from '@/constants/eventDescriptors';
+import {
+  HOLIDAY_SUBLABEL_IN,
+  SHABBAT_SUBLABEL_IN,
+  toUpcomingEventDisplay,
+} from '@/constants/eventDescriptors';
+import { homeTheme } from '@/constants/homeTheme';
+import { holidayGuideHasCandleSection } from '@/services/holidayGuideService';
+
+const CANDLE_ACTION_LABEL = 'סדר הדלקת נרות וברכות';
+
+function heroPlaceLabel(source: ZmanimLocation['source'] | undefined): string {
+  if (source === 'fresh' || source === 'cached') {
+    return 'המיקום שלך';
+  }
+  return DEFAULT_PLACE_NAME;
+}
+
+interface NextEventCardProps {
+  onOpenCandleGuide?: () => void;
+}
 
 /** Stable fallback so useCountdown is not fed a new ISO string every render while loading. */
 const IDLE_COUNTDOWN_TARGET = '1970-01-01T00:00:00.000Z';
 
-export function NextEventCard() {
-  const { calendarInput, zmanimLocation, isResolving: isLocationResolving } =
-    useZmanimLocation();
-  const { event, isLoading, error, refresh } = useNextUpcomingEvent(calendarInput);
+export function NextEventCard({ onOpenCandleGuide }: NextEventCardProps) {
+  const {
+    calendarInput,
+    zmanimLocation,
+    isResolving: isLocationResolving,
+    refresh: refreshLocation,
+  } = useZmanimLocation();
+  const [locationSheetOpen, setLocationSheetOpen] = useState(false);
+  const { event, isLoading, error, refresh: refreshEvent } =
+    useNextUpcomingEvent(calendarInput);
 
   const displayEvent = useMemo(
     () => (event ? toUpcomingEventDisplay(event) : null),
@@ -35,8 +63,8 @@ export function NextEventCard() {
   );
 
   const handleExpired = useCallback(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshEvent();
+  }, [refreshEvent]);
 
   const countdown = useCountdown(
     event?.targetDate ?? IDLE_COUNTDOWN_TARGET,
@@ -98,14 +126,22 @@ export function NextEventCard() {
     });
   }, [event, displayEvent, countdown.totalSeconds, zmanimLocation]);
 
+  const locationSheet = (
+    <LocationSourceSheet
+      visible={locationSheetOpen}
+      onClose={() => setLocationSheetOpen(false)}
+      location={zmanimLocation}
+      isResolving={isLocationResolving}
+      onRefresh={() => {
+        void refreshLocation();
+      }}
+    />
+  );
+
   if (isLoading && isLocationResolving) {
     return (
-      <View style={{ marginBottom: spacing.md }}>
+      <View style={{ marginBottom: homeTheme.sectionGap }}>
         <TimerHeroSkeleton />
-        <ZmanimLocationStatus
-          location={zmanimLocation}
-          isResolving={isLocationResolving}
-        />
       </View>
     );
   }
@@ -114,7 +150,7 @@ export function NextEventCard() {
     const fallbackTheme = getTimerTheme('default');
 
     return (
-      <View style={{ marginBottom: spacing.md }}>
+      <View style={{ marginBottom: homeTheme.sectionGap }}>
         <LinearGradient
           colors={fallbackTheme.gradient}
           start={{ x: 0, y: 0 }}
@@ -122,7 +158,7 @@ export function NextEventCard() {
           style={[
             shadows.hero,
             {
-              borderRadius: borderRadius.xxl,
+              borderRadius: homeTheme.heroRadius,
               minHeight: 200,
               paddingVertical: spacing.xl,
               paddingHorizontal: spacing.lg,
@@ -158,34 +194,52 @@ export function NextEventCard() {
           >
             {error ?? 'אין אירוע קרוב זמין כרגע'}
           </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="הגדרת זמני עיר"
+            onPress={() => setLocationSheetOpen(true)}
+            style={{ marginTop: spacing.md, minHeight: 44, justifyContent: 'center' }}
+          >
+            <Text style={[typography.label, { color: fallbackTheme.textColor }]}>
+              מיקום לזמנים
+            </Text>
+          </Pressable>
         </LinearGradient>
-        <ZmanimLocationStatus
-          location={zmanimLocation}
-          isResolving={isLocationResolving}
-        />
+        {locationSheet}
       </View>
     );
   }
 
+  const place = heroPlaceLabel(zmanimLocation?.source);
+  const detail = event.subLabel ?? event.title;
+  const locationLine = event.displayTime
+    ? `${place} • ${detail}:`
+    : `${place} • ${detail}`;
+  const sourceLabel = formatZmanimLocationDisplayLabel(
+    zmanimLocation?.source ?? 'unavailable',
+  );
+  const canOpenCandle =
+    Boolean(onOpenCandleGuide) &&
+    (event.subLabel === SHABBAT_SUBLABEL_IN ||
+      event.subLabel === HOLIDAY_SUBLABEL_IN) &&
+    holidayGuideHasCandleSection(event.holidayKey);
+
   return (
-    <View style={{ marginBottom: spacing.md }}>
+    <View style={{ marginBottom: homeTheme.sectionGap }}>
       <ThemedTimerBanner
-        heroLabel={displayEvent.heroLabel}
-        title={
-          event.title && displayEvent.heroLabel !== event.title
-            ? event.title
-            : undefined
-        }
+        heroLabel={displayEvent.heroLabel || event.title}
         displayTime={event.displayTime}
         totalSeconds={countdown.totalSeconds}
         themeKey={timerThemeKey}
         isActiveFast={isActiveFast}
         fastProgress={fastProgress}
+        locationLine={locationLine}
+        locationAccessibilityLabel={`${sourceLabel}. ${locationLine} ${event.displayTime ?? ''}`}
+        onOpenLocation={() => setLocationSheetOpen(true)}
+        actionLabel={canOpenCandle ? CANDLE_ACTION_LABEL : undefined}
+        onAction={canOpenCandle ? onOpenCandleGuide : undefined}
       />
-      <ZmanimLocationStatus
-        location={zmanimLocation}
-        isResolving={isLocationResolving}
-      />
+      {locationSheet}
     </View>
   );
 }

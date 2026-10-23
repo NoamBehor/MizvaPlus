@@ -776,7 +776,7 @@ const styles = StyleSheet.create({
   },
   pageContent: {
     flex: 1,
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     direction: 'rtl',
   },
   pageTopSpace: {

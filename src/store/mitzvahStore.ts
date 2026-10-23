@@ -12,6 +12,8 @@ import {
 
   isMitzvahCompletedToday,
 
+  uncompleteMitzvahToday,
+
 } from '@/services/mitzvot';
 
 import { awardXp } from '@/services/xp';
@@ -43,7 +45,9 @@ import { filterEnabledActiveMitzvotForToday } from '@/services/calendarMitzvot';
 import { useGamificationStore } from '@/store/gamificationStore';
 
 import { prepareForRemoteSync } from '@/services/mitzvahPreferences';
+import { deleteCompletion } from '@/services/cloud/mitzvahRepository';
 import { requestCloudSync } from '@/services/cloud/syncService';
+import { getActivityDateKey } from '@/utils/timezone';
 
 import {
 
@@ -100,6 +104,8 @@ interface MitzvahState {
   toggleCompletion: (userId: string, mitzvahId: string) => Promise<void>;
 
   markMitzvahComplete: (userId: string, mitzvahId: string) => Promise<void>;
+
+  unmarkMitzvahCompleteToday: (userId: string, mitzvahId: string) => Promise<void>;
 
   getEnabledTrackedMitzvot: () => Mitzvah[];
 
@@ -542,6 +548,43 @@ export const useMitzvahStore = create<MitzvahState>((set, get) => ({
 
     void requestCloudSync(userId);
 
+  },
+
+  unmarkMitzvahCompleteToday: async (userId, mitzvahId) => {
+    const { completions } = get();
+    const completionDate = getActivityDateKey();
+    const removed = completions.find(
+      (completion) =>
+        completion.userId === userId &&
+        completion.mitzvahId === mitzvahId &&
+        completion.completionDate === completionDate,
+    );
+
+    if (!removed) {
+      return;
+    }
+
+    try {
+      await deleteCompletion(userId, mitzvahId, completionDate);
+    } catch {
+      return;
+    }
+
+    const updatedCompletions = uncompleteMitzvahToday(
+      userId,
+      mitzvahId,
+      completions,
+    );
+    set({ completions: updatedCompletions });
+    await setJson(completionsStorageKey(userId), updatedCompletions);
+
+    await awardXp({
+      userId,
+      amount: -removed.xpAwarded,
+      reason: 'MITZVAH_COMPLETED',
+      referenceId: removed.id,
+    });
+    void requestCloudSync(userId);
   },
 
 

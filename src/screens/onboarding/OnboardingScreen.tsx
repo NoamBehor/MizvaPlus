@@ -123,7 +123,7 @@ export function OnboardingScreen({ navigation }: OnboardingScreenProps) {
             borderColor: startupTheme.headerBorder,
             paddingVertical: spacing.lg,
             paddingHorizontal: spacing.md,
-            alignItems: 'flex-end',
+            alignItems: 'flex-start',
           },
         ]}
       >

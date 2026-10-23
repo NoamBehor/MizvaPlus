@@ -64,7 +64,7 @@ export function PodcastCardSkeleton() {
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.md,
         minHeight: 140,
-        alignItems: 'flex-end',
+        alignItems: 'flex-start',
         gap: spacing.sm,
       }}
     >

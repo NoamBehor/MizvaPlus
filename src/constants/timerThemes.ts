@@ -69,7 +69,7 @@ export const TIMER_THEMES: Record<TimerThemeKey, TimerTheme> = {
   },
   shabbat: {
     key: 'shabbat',
-    gradient: ['#312E81', '#1E1B4B'],
+    gradient: ['#0B1536', '#1E3A8A'],
     accent: '#FDE68A',
     textColor: '#FEF9C3',
     labelColor: 'rgba(254, 249, 195, 0.8)',

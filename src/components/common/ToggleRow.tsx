@@ -22,6 +22,10 @@ export function ToggleRow({
 }: ToggleRowProps) {
   return (
     <View className="flex-row items-center justify-between py-2">
+      <View className="flex-1 flex-row items-center justify-start gap-2">
+        {icon ? <Text className="text-base">{icon}</Text> : null}
+        <Text style={typography.label}>{label}</Text>
+      </View>
       <Switch
         value={value}
         onValueChange={onValueChange}
@@ -31,10 +35,6 @@ export function ToggleRow({
         trackColor={{ false: colors.border, true: colors.accent }}
         thumbColor={colors.white}
       />
-      <View className="flex-1 flex-row items-center justify-end gap-2">
-        {icon ? <Text className="text-base">{icon}</Text> : null}
-        <Text style={typography.label}>{label}</Text>
-      </View>
     </View>
   );
 }

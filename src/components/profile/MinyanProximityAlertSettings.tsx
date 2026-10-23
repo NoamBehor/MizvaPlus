@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import * as Location from 'expo-location';
 
+import { AppIcon } from '@/components/common/AppIcon';
 import { Card } from '@/components/common/Card';
 import { ToggleRow } from '@/components/common/ToggleRow';
 import { colors } from '@/constants/colors';
+import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
+import { homeFonts, homeTheme } from '@/constants/homeTheme';
+import { profileTheme } from '@/constants/profileTheme';
 import { MINYAN_PROXIMITY_ALERT_RADIUS_METERS } from '@/constants/minyanProximity';
 import { spacing, typography } from '@/constants/theme';
 import {
@@ -62,34 +66,81 @@ export function MinyanProximityAlertSettings() {
     );
   }, []);
 
-  return (
-    <Card className="mb-4" elevated>
-      <Text style={typography.subtitle}>התראות ומיקום</Text>
-      <Text
-        style={[
-          typography.bodySmall,
-          {
-            marginTop: spacing.xs,
-            color: colors.muted,
-            textAlign: 'right',
-            writingDirection: 'rtl',
-          },
-        ]}
-      >
-        קבלו התראה כשאתם בקרבת בית כנסת עם בקשת מניין פעילה (עד{' '}
-        {MINYAN_PROXIMITY_ALERT_RADIUS_METERS} מטר), כשהאפליקציה פעילה. התראות
-        לא יישלחו כשהאפליקציה סגורה לחלוטין.
-      </Text>
+  const fontsLoaded = useHomeFonts();
 
-      <ToggleRow
-        label="התראות על מניין בקרבת מקום"
-        value={enabled}
-        onValueChange={(value) => {
-          void handleToggle(value);
+  return (
+    <Card
+      elevated
+      style={{
+        backgroundColor: colors.white,
+        borderColor: '#F1F5F9',
+        borderRadius: homeTheme.cardRadius,
+        marginBottom: 0,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+        <View
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 12,
+            backgroundColor: profileTheme.brandSoft,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <AppIcon name="map" size={20} color={profileTheme.brand} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={[
+              homeFontStyle(fontsLoaded, homeFonts.bold),
+              {
+                color: homeTheme.text,
+                fontSize: 14,
+                textAlign: 'right',
+                writingDirection: 'rtl',
+              },
+            ]}
+          >
+            התרעות ומיקום חכם
+          </Text>
+          <Text
+            style={[
+              typography.bodySmall,
+              {
+                marginTop: spacing.xs,
+                color: homeTheme.muted,
+                textAlign: 'right',
+                writingDirection: 'rtl',
+              },
+            ]}
+          >
+            קבלו התראה מיידית כשאתם בקרבת בית כנסת עם בקשת מניין דחופה (עד{' '}
+            {MINYAN_PROXIMITY_ALERT_RADIUS_METERS} מטר), כשהאפליקציה פעילה ברקע.
+            התראות לא יישלחו כשהאפליקציה סגורה לחלוטין.
+          </Text>
+        </View>
+      </View>
+
+      <View
+        style={{
+          borderTopWidth: 1,
+          borderTopColor: '#F1F5F9',
+          marginTop: spacing.sm,
+          paddingTop: spacing.xs,
         }}
-        disabled={isLoading}
-        icon="📍"
-      />
+      >
+        <ToggleRow
+          label="התראות על מניין בקרבת מקום"
+          value={enabled}
+          onValueChange={(value) => {
+            void handleToggle(value);
+          }}
+          disabled={isLoading}
+          icon="📍"
+        />
+      </View>
 
       {statusMessage ? (
         <Text

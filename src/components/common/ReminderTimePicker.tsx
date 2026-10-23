@@ -60,11 +60,11 @@ export function ReminderTimePicker({
         className="flex-row items-center justify-between rounded-xl border border-border px-4 py-3"
         style={{ backgroundColor: colors.background, opacity: disabled ? 0.5 : 1 }}
       >
-        <Text className="text-lg text-muted">›</Text>
-        <View className="items-end">
+        <View className="items-start">
           <Text style={typography.caption}>שעה</Text>
           <Text style={typography.subtitle}>{formatTimeForDisplay(value)}</Text>
         </View>
+        <Text className="text-lg text-muted">‹</Text>
       </Pressable>
 
       {Platform.OS === 'ios' ? (
@@ -75,12 +75,12 @@ export function ReminderTimePicker({
               style={{ backgroundColor: colors.surface }}
             >
               <View className="mb-4 flex-row items-center justify-between">
+                <Text style={typography.subtitle}>בחר שעה (שעון ישראל)</Text>
                 <Pressable onPress={handleClose}>
                   <Text style={[typography.label, { color: colors.accent }]}>
                     סיום
                   </Text>
                 </Pressable>
-                <Text style={typography.subtitle}>בחר שעה (שעון ישראל)</Text>
               </View>
               <DateTimePicker
                 value={pickerDate}

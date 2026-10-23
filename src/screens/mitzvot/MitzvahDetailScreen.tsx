@@ -137,9 +137,9 @@ export function MitzvahDetailScreen({
           accessibilityRole="button"
           accessibilityLabel="חזרה"
           className="mb-4"
-          style={{ minHeight: 48, alignItems: 'flex-end' }}
+          style={{ minHeight: 48, alignItems: 'flex-start' }}
         >
-          <Text style={typography.label}>← חזרה</Text>
+          <Text style={typography.label}>→ חזרה</Text>
         </Pressable>
         <Text style={typography.body}>המצווה לא נמצאה.</Text>
       </ScreenContainer>
@@ -204,12 +204,12 @@ export function MitzvahDetailScreen({
         accessibilityRole="button"
         accessibilityLabel="חזרה"
         className="mb-4"
-        style={{ minHeight: 48, alignItems: 'flex-end' }}
+        style={{ minHeight: 48, alignItems: 'flex-start' }}
       >
-        <Text style={typography.label}>← חזרה</Text>
+        <Text style={typography.label}>→ חזרה</Text>
       </Pressable>
 
-      <View className="mb-4 items-end">
+      <View className="mb-4 items-start">
         <View
           className="mb-3 rounded-full px-3 py-1"
           style={{ backgroundColor: colors.border }}
@@ -217,7 +217,7 @@ export function MitzvahDetailScreen({
           <Text style={typography.caption}>{categoryLabel}</Text>
         </View>
 
-        <View className="flex-row-reverse items-center gap-3">
+        <View className="flex-row items-center gap-3">
           <Text style={{ fontSize: 36 }} accessibilityElementsHidden>
             {icon}
           </Text>

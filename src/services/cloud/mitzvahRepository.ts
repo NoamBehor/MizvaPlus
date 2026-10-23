@@ -73,6 +73,29 @@ export async function fetchCompletions(
   return data ?? [];
 }
 
+export async function deleteCompletion(
+  userId: string,
+  mitzvahId: string,
+  activityDate: string,
+): Promise<void> {
+  if (!isSupabaseConfigured()) {
+    return;
+  }
+
+  const { error } = await withTimeout(
+    getSupabaseClient()
+      .from('mitzvah_completions')
+      .delete()
+      .eq('user_id', userId)
+      .eq('mitzvah_id', mitzvahId)
+      .eq('activity_date', activityDate),
+  );
+
+  if (error) {
+    throw error;
+  }
+}
+
 export async function upsertCompletions(
   rows: CloudMitzvahCompletion[],
 ): Promise<void> {

@@ -1,8 +1,9 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import { Platform, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/colors';
+import { spacing } from '@/constants/theme';
 import { useScrollBottomInset } from '@/hooks/useScrollBottomInset';
 
 const WEB_PREVIEW_MAX_WIDTH = 480;
@@ -13,6 +14,9 @@ interface ScreenContainerProps {
   className?: string;
   /** Additional scroll padding for screen-local overlays (e.g. mini player). */
   extraScrollBottomInset?: number;
+  backgroundColor?: string;
+  horizontalPadding?: number;
+  scrollRef?: RefObject<ScrollView | null>;
 }
 
 export function ScreenContainer({
@@ -20,6 +24,9 @@ export function ScreenContainer({
   scrollable = true,
   className = '',
   extraScrollBottomInset = 0,
+  backgroundColor = colors.background,
+  horizontalPadding = spacing.md,
+  scrollRef,
 }: ScreenContainerProps) {
   const { scrollPaddingBottom, excludeBottomSafeArea } =
     useScrollBottomInset(extraScrollBottomInset);
@@ -35,7 +42,12 @@ export function ScreenContainer({
       : { flex: 1 };
 
   const content = (
-    <View className={`flex-1 px-4 pt-4 ${className}`}>{children}</View>
+    <View
+      className={`flex-1 pt-4 ${className}`}
+      style={{ paddingHorizontal: horizontalPadding }}
+    >
+      {children}
+    </View>
   );
 
   return (
@@ -44,11 +56,12 @@ export function ScreenContainer({
       edges={
         excludeBottomSafeArea ? ['top', 'left', 'right'] : undefined
       }
-      style={{ backgroundColor: colors.background }}
+      style={{ backgroundColor }}
     >
       <View style={frameStyle}>
         {scrollable ? (
           <ScrollView
+            ref={scrollRef}
             className="flex-1"
             contentContainerStyle={{
               paddingBottom: scrollPaddingBottom,

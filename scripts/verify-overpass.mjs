@@ -30,15 +30,9 @@ function buildOverpassQuery(latitude, longitude, radiusMeters) {
   const around = `${radiusMeters},${latitude},${longitude}`;
   return `[out:json][timeout:${OVERPASS_QUERY_TIMEOUT_SECONDS}];
 (
-  node["amenity"="place_of_worship"]["religion"~"^(jewish|judaism)$"](around:${around});
-  way["amenity"="place_of_worship"]["religion"~"^(jewish|judaism)$"](around:${around});
-  relation["amenity"="place_of_worship"]["religion"~"^(jewish|judaism)$"](around:${around});
-  node["building"="synagogue"](around:${around});
-  way["building"="synagogue"](around:${around});
-  relation["building"="synagogue"](around:${around});
-  node["amenity"="synagogue"](around:${around});
-  way["amenity"="synagogue"](around:${around});
-  relation["amenity"="synagogue"](around:${around});
+  nwr["amenity"="place_of_worship"]["religion"~"^(jewish|judaism)$"](around:${around});
+  nwr["building"="synagogue"](around:${around});
+  nwr["amenity"="synagogue"](around:${around});
 );
 out center tags;`;
 }
@@ -226,54 +220,70 @@ async function executeOverpassWithFailover({
   const failures = [];
 
   for (const endpoint of endpoints) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    let retriedSameEndpoint = false;
 
-    try {
-      const response = await fetchFn(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-          'User-Agent': 'MizvaPlus/1.0 (Linux; Android; OpenStreetMap consumer)',
-        },
-        body: `data=${encodeURIComponent(query)}`,
-        signal: controller.signal,
-      });
+    while (true) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        const error = new Error(`Overpass API responded with status ${response.status}`);
-        error.status = response.status;
-        throw error;
-      }
-
-      let payload;
       try {
-        payload = JSON.parse(responseText);
-      } catch {
-        throw new Error('Overpass API returned malformed JSON');
-      }
+        const response = await fetchFn(endpoint, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            'User-Agent': 'MizvaPlus/1.0 (Linux; Android; OpenStreetMap consumer)',
+          },
+          body: `data=${encodeURIComponent(query)}`,
+          signal: controller.signal,
+        });
 
-      return parseOverpassResponse(payload, coordinates);
-    } catch (error) {
-      if (error?.name === 'AbortError') {
-        failures.push(`${endpoint}: request timed out`);
-      } else if (error instanceof Error) {
-        const status = error.status;
-        failures.push(
-          status
-            ? `${endpoint}: HTTP ${status} (${error.message})`
-            : `${endpoint}: ${error.message}`,
-        );
-        if (typeof status === 'number' && !isRetryableOverpassHttpStatus(status)) {
+        const responseText = await response.text();
+
+        if (!response.ok) {
+          const error = new Error(`Overpass API responded with status ${response.status}`);
+          error.status = response.status;
           throw error;
         }
-      } else {
+
+        let payload;
+        try {
+          payload = JSON.parse(responseText);
+        } catch {
+          throw new Error('Overpass API returned malformed JSON');
+        }
+
+        return parseOverpassResponse(payload, coordinates);
+      } catch (error) {
+        if (error?.name === 'AbortError') {
+          failures.push(`${endpoint}: request timed out`);
+          break;
+        }
+        if (error instanceof Error) {
+          const status = error.status;
+          failures.push(
+            status
+              ? `${endpoint}: HTTP ${status} (${error.message})`
+              : `${endpoint}: ${error.message}`,
+          );
+          if (
+            typeof status === 'number' &&
+            isRetryableOverpassHttpStatus(status) &&
+            !retriedSameEndpoint
+          ) {
+            retriedSameEndpoint = true;
+            continue;
+          }
+          if (typeof status === 'number' && !isRetryableOverpassHttpStatus(status)) {
+            throw error;
+          }
+          break;
+        }
         failures.push(`${endpoint}: unknown error`);
+        break;
+      } finally {
+        clearTimeout(timeoutId);
       }
-    } finally {
-      clearTimeout(timeoutId);
     }
   }
 
@@ -304,12 +314,62 @@ record('overpass service exists', existsSync(join(root, 'src/services/overpass.t
 record(
   'failover endpoints configured',
   overpassConstants.includes('OVERPASS_ENDPOINTS') &&
+    overpassConstants.includes('overpass.openstreetmap.fr') &&
     overpassConstants.includes('overpass.kumi.systems'),
+);
+record(
+  'maps.mail.ru is not used on web',
+  !overpassConstants.includes('maps.mail.ru') &&
+    !overpassSrc.includes('maps.mail.ru'),
 );
 record(
   'custom User-Agent configured',
   overpassConstants.includes('OVERPASS_USER_AGENT') &&
     overpassSrc.includes("'User-Agent': OVERPASS_USER_AGENT"),
+);
+record(
+  'Overpass requests send Accept application/json',
+  overpassSrc.includes("'Accept': 'application/json'"),
+);
+record(
+  '504 is retried on the same endpoint before failover',
+  overpassConstants.includes('OVERPASS_SAME_ENDPOINT_RETRY_DELAY_MS') &&
+    overpassSrc.includes('OVERPASS_SAME_ENDPOINT_RETRY_DELAY_MS'),
+);
+record(
+  'query uses compact nwr filters',
+  overpassSrc.includes('nwr["amenity"="place_of_worship"]') &&
+    overpassSrc.includes('nwr["building"="synagogue"]') &&
+    overpassSrc.includes('nwr["amenity"="synagogue"]') &&
+    !overpassSrc.includes('node["amenity"="place_of_worship"]'),
+);
+record(
+  'persistent cache is not gated to web development only',
+  !read('src/services/overpass/overpassPersistentCache.ts').includes(
+    "__DEV__ && Platform.OS === 'web'",
+  ) &&
+    (read('src/services/overpass/overpassPersistentCache.ts').includes(
+      "from '@/utils/storage'",
+    ) ||
+      read('src/services/overpass/overpassPersistentCache.ts').includes(
+        'AsyncStorage',
+      )),
+);
+record(
+  'persistent cache read/write is async',
+  overpassSrc.includes('await readOverpassPersistentCache') &&
+    overpassSrc.includes('await writeOverpassPersistentCache'),
+);
+record(
+  'identical in-flight Overpass requests are deduped',
+  overpassSrc.includes('inflightRequests'),
+);
+record(
+  'useSynagogues keeps mount flag across fetch-effect reruns',
+  hookSrc.includes('isMountedRef.current = false') &&
+    !/void load\(coordinates\);\s*return \(\) => \{\s*isMountedRef\.current = false;/.test(
+      hookSrc,
+    ),
 );
 record(
   'useSynagogues logs fetch errors in development',
@@ -466,6 +526,46 @@ const rateLimitResult = await executeOverpassWithFailover({
   timeoutMs: 5000,
 });
 record('HTTP 429 triggers failover', rateLimitResult.length === 1);
+
+let sameEndpointRetryCalls = 0;
+let sameEndpointHitFallback = false;
+const sameEndpointRetryFetch = async (endpoint) => {
+  if (endpoint === endpointA) {
+    sameEndpointRetryCalls += 1;
+    if (sameEndpointRetryCalls === 1) {
+      return {
+        ok: false,
+        status: 504,
+        text: async () => 'gateway timeout',
+      };
+    }
+    return {
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify(successPayload),
+    };
+  }
+  sameEndpointHitFallback = true;
+  throw new Error('should not fail over before same-endpoint retry');
+};
+let sameEndpointRetryResult = [];
+try {
+  sameEndpointRetryResult = await executeOverpassWithFailover({
+    coordinates: JERUSALEM,
+    radiusMeters: 4000,
+    endpoints: [endpointA, endpointB],
+    fetchFn: sameEndpointRetryFetch,
+    timeoutMs: 5000,
+  });
+} catch {
+  sameEndpointRetryResult = [];
+}
+record(
+  'HTTP 504 retries the same endpoint before failover',
+  sameEndpointRetryResult.length === 1 &&
+    sameEndpointRetryCalls === 2 &&
+    sameEndpointHitFallback === false,
+);
 
 let timeoutFailoverThrew = false;
 const timeoutFetch = createMockFetch({

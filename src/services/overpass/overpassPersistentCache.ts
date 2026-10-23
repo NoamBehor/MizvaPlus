@@ -5,6 +5,7 @@ import {
   OVERPASS_PERSISTENT_CACHE_TTL_MS,
 } from '@/constants/overpass';
 import type { Synagogue } from '@/types/synagogue';
+import { getJson, setJson } from '@/utils/storage';
 
 const STORAGE_KEY = 'mitzvaplus:overpass:synagogue-cache:v1';
 const MAX_ENTRIES = 8;
@@ -26,47 +27,71 @@ export interface OverpassPersistentCacheLookup {
 }
 
 function isPersistentCacheEnabled(): boolean {
-  return __DEV__ && Platform.OS === 'web';
+  if (Platform.OS === 'web') {
+    return __DEV__;
+  }
+
+  return true;
 }
 
-function readStore(): StoredEntry[] {
-  if (!isPersistentCacheEnabled() || typeof localStorage === 'undefined') {
+function isStoredEntry(entry: unknown): entry is StoredEntry {
+  return Boolean(
+    entry &&
+      typeof entry === 'object' &&
+      typeof (entry as StoredEntry).cacheKey === 'string' &&
+      Array.isArray((entry as StoredEntry).result) &&
+      typeof (entry as StoredEntry).cachedAt === 'number',
+  );
+}
+
+async function readStore(): Promise<StoredEntry[]> {
+  if (!isPersistentCacheEnabled()) {
     return [];
   }
 
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return [];
+    if (Platform.OS === 'web') {
+      if (typeof localStorage === 'undefined') {
+        return [];
+      }
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) {
+        return [];
+      }
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed.filter(isStoredEntry);
     }
 
-    const parsed = JSON.parse(raw) as unknown;
+    const parsed = await getJson<unknown>(STORAGE_KEY);
     if (!Array.isArray(parsed)) {
       return [];
     }
-
-    return parsed.filter(
-      (entry): entry is StoredEntry =>
-        Boolean(
-          entry &&
-            typeof entry === 'object' &&
-            typeof (entry as StoredEntry).cacheKey === 'string' &&
-            Array.isArray((entry as StoredEntry).result) &&
-            typeof (entry as StoredEntry).cachedAt === 'number',
-        ),
-    );
+    return parsed.filter(isStoredEntry);
   } catch {
     return [];
   }
 }
 
-function writeStore(entries: StoredEntry[]): void {
-  if (!isPersistentCacheEnabled() || typeof localStorage === 'undefined') {
+async function writeStore(entries: StoredEntry[]): Promise<void> {
+  if (!isPersistentCacheEnabled()) {
     return;
   }
 
+  const next = entries.slice(0, MAX_ENTRIES);
+
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
+    if (Platform.OS === 'web') {
+      if (typeof localStorage === 'undefined') {
+        return;
+      }
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      return;
+    }
+
+    await setJson(STORAGE_KEY, next);
   } catch {
     // Ignore quota or private-mode storage failures.
   }
@@ -80,15 +105,16 @@ export function buildOverpassPersistentCacheKey(
   return `${latitude.toFixed(4)},${longitude.toFixed(4)},${radiusMeters}`;
 }
 
-export function readOverpassPersistentCache(
+export async function readOverpassPersistentCache(
   cacheKey: string,
-): OverpassPersistentCacheLookup | null {
+): Promise<OverpassPersistentCacheLookup | null> {
   if (!isPersistentCacheEnabled()) {
     return null;
   }
 
   const now = Date.now();
-  const entry = readStore().find((item) => item.cacheKey === cacheKey);
+  const store = await readStore();
+  const entry = store.find((item) => item.cacheKey === cacheKey);
   if (!entry) {
     return null;
   }
@@ -106,13 +132,13 @@ export function readOverpassPersistentCache(
   };
 }
 
-export function writeOverpassPersistentCache(input: {
+export async function writeOverpassPersistentCache(input: {
   cacheKey: string;
   latitude: number;
   longitude: number;
   radiusMeters: number;
   result: Synagogue[];
-}): void {
+}): Promise<void> {
   if (!isPersistentCacheEnabled()) {
     return;
   }
@@ -128,6 +154,8 @@ export function writeOverpassPersistentCache(input: {
     longitude: input.longitude,
   };
 
-  const remaining = readStore().filter((entry) => entry.cacheKey !== input.cacheKey);
-  writeStore([nextEntry, ...remaining]);
+  const remaining = (await readStore()).filter(
+    (entry) => entry.cacheKey !== input.cacheKey,
+  );
+  await writeStore([nextEntry, ...remaining]);
 }

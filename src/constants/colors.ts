@@ -10,6 +10,14 @@ export const colors = {
   border: '#E8E4DE',
   error: '#B00020',
   white: '#FFFFFF',
+  /** Home canvas from the Stitch homepage. Other screens keep `background`. */
+  canvas: '#F8F9FC',
+  navy: '#0B1536',
+  navyMid: '#142354',
+  gold: '#FDE68A',
+  goldDeep: '#D97706',
+  slate: '#1E293B',
+  slateMuted: '#64748B',
 } as const;
 
 export type ColorKey = keyof typeof colors;

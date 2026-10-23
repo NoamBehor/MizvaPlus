@@ -1,8 +1,8 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { Card } from '@/components/common/Card';
-import { colors } from '@/constants/colors';
-import { homeStatCard } from '@/constants/homeTheme';
+import { AppIcon } from '@/components/common/AppIcon';
+import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
+import { homeFonts, homeStatCard, homeTheme } from '@/constants/homeTheme';
 import { borderRadius, spacing, typography } from '@/constants/theme';
 import type { CalendarDayInfo, WeeklyParasha } from '@/types/calendar';
 
@@ -11,11 +11,13 @@ interface WeeklyParashaCardProps {
   isLoading: boolean;
   calendarError?: string | null;
   isRefreshing?: boolean;
+  onOpen?: () => void;
 }
 
 function buildAccessibilityLabel(
   parasha: WeeklyParasha | null | undefined,
   showLoading: boolean,
+  canOpen: boolean,
 ): string {
   if (showLoading) {
     return 'פרשת השבוע, טוען';
@@ -28,13 +30,14 @@ function buildAccessibilityLabel(
   const datePart = parasha.gregorianDate
     ? `, ${parasha.gregorianDate}${parasha.hebrewDate ? `, ${parasha.hebrewDate}` : ''}`
     : '';
+  const action = canOpen ? ', פתח את פרק הפודקאסט' : '';
 
-  return `פרשת השבוע, ${parasha.hebrewDisplayName}${datePart}`;
+  return `פרשת השבוע, ${parasha.hebrewDisplayName}${datePart}${action}`;
 }
 
 function WeeklyParashaLoadingContent() {
   return (
-    <View style={{ gap: spacing.sm, alignItems: 'flex-end', width: '100%' }}>
+    <View style={{ gap: spacing.sm, flex: 1 }}>
       <View
         style={{
           width: 88,
@@ -46,16 +49,8 @@ function WeeklyParashaLoadingContent() {
       <View
         style={{
           width: '65%',
-          height: 32,
+          height: 22,
           borderRadius: borderRadius.md,
-          backgroundColor: homeStatCard.track,
-        }}
-      />
-      <View
-        style={{
-          width: '45%',
-          height: 14,
-          borderRadius: borderRadius.sm,
           backgroundColor: homeStatCard.track,
         }}
       />
@@ -68,108 +63,138 @@ export function WeeklyParashaCard({
   isLoading,
   calendarError = null,
   isRefreshing = false,
+  onOpen,
 }: WeeklyParashaCardProps) {
+  const fontsLoaded = useHomeFonts();
   const parasha = dayInfo?.weeklyParasha;
   const showLoading = isLoading && !parasha;
   const isStaleWhileRevalidating = isRefreshing && Boolean(parasha);
-  const accessibilityLabel = buildAccessibilityLabel(parasha, showLoading);
+  const accessibilityLabel = buildAccessibilityLabel(parasha, showLoading, Boolean(onOpen));
+  const subtitle = [parasha?.gregorianDate, parasha?.hebrewDate]
+    .filter(Boolean)
+    .join(' • ');
 
-  return (
-    <Card
-      className="mb-5"
-      elevated
-      style={{
-        borderWidth: 1,
-        borderColor: homeStatCard.border,
-        ...homeStatCard.shadow,
-      }}
+  const body = (
+    <View
+      style={[
+        homeTheme.cardShadow,
+        {
+          backgroundColor: homeTheme.surface,
+          borderRadius: homeTheme.cardRadius,
+          borderWidth: 1,
+          borderColor: homeStatCard.border,
+          padding: spacing.md,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.sm,
+          marginBottom: homeTheme.sectionGap,
+        },
+      ]}
     >
-      <View
-        accessibilityRole="text"
-        accessibilityLabel={accessibilityLabel}
-        style={{
-          backgroundColor: homeStatCard.background,
-          borderRadius: homeStatCard.radius,
-          paddingVertical: spacing.lg,
-          paddingHorizontal: spacing.md,
-          alignItems: 'flex-end',
-        }}
-      >
-        {showLoading ? (
-          <WeeklyParashaLoadingContent />
-        ) : !parasha ? (
-          <>
-            <Text style={[typography.label, { color: colors.muted }]}>
-              פרשת השבוע
-            </Text>
-            <Text
-              style={[
-                typography.bodySmall,
-                { marginTop: spacing.sm, color: colors.muted },
-              ]}
-            >
-              {calendarError ?? 'פרשה לא זמינה כרגע'}
-            </Text>
-          </>
-        ) : (
-          <>
-            <View
-              style={{
-                width: '100%',
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <Text style={[typography.label, { color: colors.muted }]}>
-                פרשת השבוע
-              </Text>
-              {isStaleWhileRevalidating ? (
-                <Text style={[typography.caption, { color: colors.muted }]}>
-                  מעדכן...
-                </Text>
-              ) : null}
-            </View>
-
-            <Text
-              style={{
-                fontSize: 30,
-                fontWeight: '700',
-                color: colors.primary,
-                textAlign: 'right',
-                writingDirection: 'rtl',
-                marginTop: spacing.sm,
-                lineHeight: 36,
-              }}
-            >
-              {parasha.hebrewDisplayName}
-            </Text>
-
-            {parasha.gregorianDate ? (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
+        <View
+          style={{
+            width: 48,
+            height: 48,
+            borderRadius: 12,
+            backgroundColor: homeTheme.goldSoft,
+            borderWidth: 1,
+            borderColor: homeTheme.goldBorder,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <AppIcon name="scroll" size={24} color={homeTheme.goldDeep} />
+        </View>
+        <View
+          style={{ flex: 1 }}
+          accessibilityRole={onOpen && parasha ? undefined : 'text'}
+          accessibilityLabel={onOpen && parasha ? undefined : accessibilityLabel}
+          importantForAccessibility={onOpen && parasha ? 'no-hide-descendants' : 'auto'}
+        >
+          {showLoading ? (
+            <WeeklyParashaLoadingContent />
+          ) : !parasha ? (
+            <>
               <Text
                 style={[
-                  typography.bodySmall,
-                  { marginTop: spacing.xs, color: colors.muted },
+                  typography.caption,
+                  homeFontStyle(fontsLoaded, homeFonts.bold),
+                  { color: homeTheme.goldDeep },
                 ]}
               >
-                {parasha.gregorianDate}
-                {parasha.hebrewDate ? ` · ${parasha.hebrewDate}` : ''}
+                פרשת השבוע
               </Text>
-            ) : null}
-          </>
-        )}
+              <Text style={[typography.bodySmall, { marginTop: 4, color: homeTheme.muted }]}>
+                {calendarError ?? 'פרשה לא זמינה כרגע'}
+              </Text>
+            </>
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Text
+                  style={[
+                    typography.caption,
+                    homeFontStyle(fontsLoaded, homeFonts.bold),
+                    { color: homeTheme.goldDeep },
+                  ]}
+                >
+                  פרשת השבוע
+                </Text>
+                {isStaleWhileRevalidating ? (
+                  <Text style={[typography.caption, { color: homeTheme.muted }]}>מעדכן...</Text>
+                ) : null}
+              </View>
+              <Text
+                numberOfLines={1}
+                style={[
+                  typography.subtitle,
+                  homeFontStyle(fontsLoaded, homeFonts.bold),
+                  { color: homeTheme.text },
+                ]}
+              >
+                {parasha.hebrewDisplayName}
+              </Text>
+              {subtitle ? (
+                <Text numberOfLines={1} style={[typography.caption, { color: homeTheme.muted }]}>
+                  {subtitle}
+                </Text>
+              ) : null}
+            </>
+          )}
+        </View>
       </View>
-
-      {dayInfo?.locationSource === 'fallback' && !showLoading ? (
-        <Text
-          style={[
-            typography.caption,
-            { marginTop: spacing.sm, color: colors.muted },
-          ]}
+      {onOpen && parasha ? (
+        <View
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 12,
+            backgroundColor: '#F8FAFC',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
         >
-          זמנים מחושבים ל{dayInfo.locationLabel}
-        </Text>
+          <AppIcon name="chevronLeft" color={homeTheme.muted} />
+        </View>
       ) : null}
-    </Card>
+    </View>
+  );
+
+  if (!onOpen || !parasha) {
+    return body;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      onPress={onOpen}
+    >
+      {body}
+    </Pressable>
   );
 }

@@ -94,7 +94,7 @@ export function MyMitzvotEditPanel({ userId, onClose }: MyMitzvotEditPanelProps)
   return (
     <View className="mb-6">
       <View
-        className="mb-4 flex-row-reverse items-center justify-between"
+        className="mb-4 flex-row items-center justify-between"
         style={{ gap: spacing.sm }}
       >
         <Text style={typography.subtitle}>עריכת המצוות שלי</Text>
@@ -138,8 +138,8 @@ export function MyMitzvotEditPanel({ userId, onClose }: MyMitzvotEditPanelProps)
                       paddingVertical: spacing.md,
                     }}
                   >
-                    <View className="flex-row-reverse items-center justify-between">
-                      <View className="flex-1 items-end">
+                    <View className="flex-row items-center justify-between">
+                      <View className="flex-1 items-start">
                         <Text style={typography.subtitle}>{mitzvah.title}</Text>
                         <Text style={[typography.bodySmall, { marginTop: 4 }]}>
                           {mitzvah.description}

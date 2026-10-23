@@ -69,7 +69,7 @@ export function ParashaPodcastCard({
             borderRadius: borderRadius.lg,
             paddingVertical: spacing.md,
             paddingHorizontal: spacing.md,
-            alignItems: 'flex-end',
+            alignItems: 'flex-start',
           }}
         >
           <Text style={[typography.caption, { color: colors.muted }]}>
@@ -170,7 +170,7 @@ export function ParashaPodcastCard({
           </Text>
 
           <View
-            className="flex-row-reverse items-center"
+            className="flex-row items-center"
             style={{ marginTop: spacing.md }}
           >
             <View

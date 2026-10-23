@@ -87,21 +87,25 @@ export function MitzvahAudioControls({ content }: MitzvahAudioControlsProps) {
 
   return (
     <View>
-      <View className="flex-row items-center justify-end gap-3">
+      <View className="flex-row items-center justify-start gap-3">
         <Pressable
-          onPress={handleStop}
+          onPress={() => void handlePlay()}
           accessibilityRole="button"
-          accessibilityLabel="עצור השמעה"
+          accessibilityLabel={
+            isPaused ? 'המשך השמעה' : isSpeaking ? 'עצור והתחל מחדש' : 'השמע'
+          }
           className="rounded-xl px-4 py-3"
           style={{
-            backgroundColor: colors.border,
+            backgroundColor: colors.accent,
             minHeight: 48,
-            minWidth: 80,
+            minWidth: 100,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Text style={typography.label}>■ עצור</Text>
+          <Text style={[typography.label, { color: colors.white }]}>
+            {isPaused ? '▶ המשך' : isSpeaking ? '■ עצור' : '▶ השמע'}
+          </Text>
         </Pressable>
 
         {showPauseControl ? (
@@ -125,23 +129,19 @@ export function MitzvahAudioControls({ content }: MitzvahAudioControlsProps) {
         ) : null}
 
         <Pressable
-          onPress={() => void handlePlay()}
+          onPress={handleStop}
           accessibilityRole="button"
-          accessibilityLabel={
-            isPaused ? 'המשך השמעה' : isSpeaking ? 'עצור והתחל מחדש' : 'השמע'
-          }
+          accessibilityLabel="עצור השמעה"
           className="rounded-xl px-4 py-3"
           style={{
-            backgroundColor: colors.accent,
+            backgroundColor: colors.border,
             minHeight: 48,
-            minWidth: 100,
+            minWidth: 80,
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Text style={[typography.label, { color: colors.white }]}>
-            {isPaused ? '▶ המשך' : isSpeaking ? '■ עצור' : '▶ השמע'}
-          </Text>
+          <Text style={typography.label}>■ עצור</Text>
         </Pressable>
       </View>
 

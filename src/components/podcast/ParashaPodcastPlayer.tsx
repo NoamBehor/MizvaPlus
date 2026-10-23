@@ -177,7 +177,7 @@ export function ParashaPodcastPlayer({ podcast }: ParashaPodcastPlayerProps) {
       </View>
 
       <View
-        className="flex-row-reverse items-center justify-center"
+        className="flex-row items-center justify-center"
         style={{ marginTop: spacing.lg, gap: spacing.md }}
       >
         <Pressable

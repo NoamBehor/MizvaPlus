@@ -50,21 +50,7 @@ export function DailyTriviaCard({ userId }: DailyTriviaCardProps) {
   return (
     <Card className="mb-4" elevated>
       <View className="flex-row items-center justify-between">
-        <Pressable
-          onPress={navigateToTrivia}
-          accessibilityRole="button"
-          accessibilityLabel={
-            session.isComplete ? 'צפייה בתוצאות' : 'להמשיך את החידון'
-          }
-          className="rounded-xl px-4 py-2"
-          style={{ backgroundColor: colors.primary, minHeight: 44 }}
-        >
-          <Text style={[typography.bodySmall, { color: colors.white }]}>
-            {session.isComplete ? 'תוצאות' : 'לשחק'}
-          </Text>
-        </Pressable>
-
-        <View className="flex-1 items-end">
+        <View className="flex-1 items-start">
           <Text style={typography.subtitle}>
             {session.isComplete ? 'החידון הושלם' : 'החידון היומי'}
           </Text>
@@ -82,6 +68,20 @@ export function DailyTriviaCard({ userId }: DailyTriviaCardProps) {
             </Text>
           ) : null}
         </View>
+
+        <Pressable
+          onPress={navigateToTrivia}
+          accessibilityRole="button"
+          accessibilityLabel={
+            session.isComplete ? 'צפייה בתוצאות' : 'להמשיך את החידון'
+          }
+          className="rounded-xl px-4 py-2"
+          style={{ backgroundColor: colors.primary, minHeight: 44 }}
+        >
+          <Text style={[typography.bodySmall, { color: colors.white }]}>
+            {session.isComplete ? 'תוצאות' : 'לשחק'}
+          </Text>
+        </Pressable>
       </View>
 
       <View style={{ marginTop: spacing.md }}>

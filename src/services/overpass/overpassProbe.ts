@@ -56,6 +56,7 @@ export async function probeOverpassConnectivity(
     const response = await fetch(targetEndpoint, {
       method: 'POST',
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
         'User-Agent': OVERPASS_USER_AGENT,
       },

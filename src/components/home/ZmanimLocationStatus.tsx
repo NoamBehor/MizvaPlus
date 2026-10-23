@@ -1,6 +1,8 @@
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
+import { HomeSheet } from '@/components/home/HomeSheet';
 import { colors } from '@/constants/colors';
+import { homeTheme } from '@/constants/homeTheme';
 import { spacing, typography } from '@/constants/theme';
 import {
   formatZmanimLocationDisplayLabel,
@@ -48,7 +50,7 @@ export function ZmanimLocationStatus({
     return (
       <View
         accessibilityRole="text"
-        accessibilityLabel="מיקום לחישוב זמנים: מיקום לא זמין — זמנים לפי ירושלים"
+        accessibilityLabel={`מיקום לחישוב זמנים: ${formatZmanimLocationDisplayLabel('unavailable')}`}
         style={{
           flexDirection: 'row',
           alignItems: 'center',
@@ -108,5 +110,44 @@ export function ZmanimLocationStatus({
         {label}
       </Text>
     </View>
+  );
+}
+
+interface LocationSourceSheetProps {
+  visible: boolean;
+  onClose: () => void;
+  location: ZmanimLocation | null;
+  isResolving?: boolean;
+  onRefresh: () => void;
+}
+
+export function LocationSourceSheet({
+  visible,
+  onClose,
+  location,
+  isResolving = false,
+  onRefresh,
+}: LocationSourceSheetProps) {
+  return (
+    <HomeSheet visible={visible} title="זמני העיר" onClose={onClose}>
+      <ZmanimLocationStatus location={location} isResolving={isResolving} />
+      <Text style={[typography.bodySmall, { color: colors.muted }]}>
+        הזמנים מחושבים לפי המיקום הקיים. אין בחירת עיר ידנית.
+      </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="רענון מיקום"
+        onPress={onRefresh}
+        style={{
+          minHeight: 44,
+          borderRadius: 12,
+          backgroundColor: homeTheme.primary,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={[typography.label, { color: colors.white }]}>רענון מיקום</Text>
+      </Pressable>
+    </HomeSheet>
   );
 }

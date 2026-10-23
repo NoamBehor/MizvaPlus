@@ -146,8 +146,8 @@ record(
 );
 record(
   'RTL patterns used',
-  cardSrc.includes("alignItems: 'flex-end'") &&
-    screenSrc.includes('flex-row-reverse'),
+  cardSrc.includes("alignItems: 'flex-start'") &&
+    screenSrc.includes('className="flex-row items-center justify-between"'),
 );
 record(
   'Web fallback present',

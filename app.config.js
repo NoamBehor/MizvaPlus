@@ -7,12 +7,12 @@
  * - iOS uses Apple Maps (MapKit) by default — no Google Maps key required
  * - Restrict key in Google Cloud Console to package com.mitzvahapp.app + SHA-1 fingerprint(s)
  * - EAS: eas env:create --name GOOGLE_MAPS_ANDROID_API_KEY --environment production
+ * - Local debug builds also need the debug keystore SHA-1 on that Android key
  *
  * Supabase auth redirects (P10.5-003) — add to Dashboard > Auth > URL Configuration:
  * - mitzvahapp://reset-password
  * - mitzvahapp://confirm
  */
-const googleMapsAndroidApiKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY ?? '';
 
 function loadLocalEnvFile() {
   try {
@@ -50,6 +50,10 @@ function loadLocalEnvFile() {
 }
 
 const localEnv = loadLocalEnvFile();
+const googleMapsAndroidApiKey =
+  process.env.GOOGLE_MAPS_ANDROID_API_KEY ??
+  localEnv.GOOGLE_MAPS_ANDROID_API_KEY ??
+  '';
 const isProductionBuild = process.env.EAS_BUILD_PROFILE === 'production';
 const devTestEmailRaw = process.env.DEV_TEST_EMAIL ?? localEnv.DEV_TEST_EMAIL ?? '';
 const devTestPasswordRaw =
@@ -103,6 +107,7 @@ module.exports = {
       favicon: './assets/favicon.png',
     },
     plugins: [
+      'expo-font',
       'expo-asset',
       'expo-audio',
       'expo-notifications',

@@ -202,7 +202,7 @@ export async function getCachedLocationIfPermitted(): Promise<UserLocation | nul
 
 /**
  * Resolves device location using last-known cache, then a fresh GPS fix.
- * Never silently substitutes Jerusalem when permission is denied.
+ * Never silently substitutes the default place when permission is denied.
  */
 export async function resolveDeviceLocation(): Promise<UserLocation> {
   if (__DEV__) {

@@ -1,5 +1,6 @@
 import { Platform } from 'react-native';
 
+import { DEFAULT_PLACE_NAME } from '@/constants/defaultPlace';
 import { DEV_PREVIEW_DEFAULT_COORDINATES } from '@/services/devPreview/devPreviewData';
 import { isDevPreviewMode } from '@/services/devPreview/isDevPreviewMode';
 import {
@@ -27,7 +28,7 @@ const CACHE_STORAGE_KEY = '@mitzvahapp/zmanim_location_cache';
 const FRESH_MAX_AGE_MS = 5 * 60 * 1000;
 const CACHED_MAX_AGE_MS = 60 * 60 * 1000;
 
-const JERUSALEM_FALLBACK: ZmanimLocation = {
+const DEFAULT_PLACE_FALLBACK: ZmanimLocation = {
   latitude: DEV_PREVIEW_DEFAULT_COORDINATES.latitude,
   longitude: DEV_PREVIEW_DEFAULT_COORDINATES.longitude,
   capturedAt: 0,
@@ -71,9 +72,9 @@ export function formatZmanimLocationDisplayLabel(
       return 'לפי המיקום האחרון שנשמר';
     case 'fallback':
     case 'preview':
-      return 'ירושלים — מיקום ברירת מחדל';
+      return `${DEFAULT_PLACE_NAME} — מיקום ברירת מחדל`;
     case 'unavailable':
-      return 'מיקום לא זמין — זמנים לפי ירושלים';
+      return `מיקום לא זמין — זמנים לפי ${DEFAULT_PLACE_NAME}`;
     default:
       return formatZmanimLocationSourceLabel(source);
   }
@@ -163,14 +164,14 @@ export function resolvePreviewLocation(): ZmanimLocation {
 
 export function resolveFallbackLocation(): ZmanimLocation {
   return {
-    ...JERUSALEM_FALLBACK,
+    ...DEFAULT_PLACE_FALLBACK,
     capturedAt: Date.now(),
   };
 }
 
 /**
  * Resolves the best available zmanim location without blocking indefinitely.
- * Priority: fresh GPS → recent cache → Jerusalem fallback.
+ * Priority: fresh GPS → recent cache → default-place fallback.
  * Web dev preview uses preview coordinates.
  */
 export async function resolveZmanimLocation(): Promise<ZmanimLocation> {

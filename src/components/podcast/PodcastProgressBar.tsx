@@ -72,7 +72,10 @@ export function PodcastProgressBar({
 
   return (
     <View>
-      <View className="flex-row items-center justify-between">
+      <View
+        className="flex-row items-center justify-between"
+        style={{ direction: 'ltr' }}
+      >
         <Text
           style={[
             typography.caption,
