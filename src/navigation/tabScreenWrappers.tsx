@@ -1,7 +1,7 @@
 import { TabScreenFocusGuard } from '@/navigation/TabScreenFocusGuard';
+import { CalendarScreen } from '@/screens/calendar/CalendarScreen';
 import { HomeScreen } from '@/screens/home/HomeScreen';
 import { MapScreen } from '@/screens/map/MapScreen';
-import { MyMitzvotScreen } from '@/screens/mitzvot/MyMitzvotScreen';
 import { ProfileScreen } from '@/screens/profile/ProfileScreen';
 import { TriviaScreen } from '@/screens/trivia/TriviaScreen';
 
@@ -13,10 +13,10 @@ export function HomeTabScreen() {
   );
 }
 
-export function MyMitzvotTabScreen() {
+export function CalendarTabScreen() {
   return (
     <TabScreenFocusGuard>
-      <MyMitzvotScreen />
+      <CalendarScreen />
     </TabScreenFocusGuard>
   );
 }

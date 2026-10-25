@@ -9,9 +9,9 @@ import { useCloudSync } from '@/hooks/useCloudSync';
 import { useMinyanProximityAlerts } from '@/hooks/useMinyanProximityAlerts';
 import type { MainTabParamList } from '@/navigation/types';
 import {
+  CalendarTabScreen,
   HomeTabScreen,
   MapTabScreen,
-  MyMitzvotTabScreen,
   ProfileTabScreen,
   TriviaTabScreen,
 } from '@/navigation/tabScreenWrappers';
@@ -24,7 +24,7 @@ export const TAB_BAR_CONTENT_HEIGHT = 58;
 
 const TAB_ICONS: Record<keyof MainTabParamList, { icon: AppIconName; focused: AppIconName }> = {
   Home: { icon: 'home', focused: 'homeFocused' },
-  MyMitzvot: { icon: 'mitzvot', focused: 'mitzvotFocused' },
+  Calendar: { icon: 'calendar', focused: 'calendarFocused' },
   Trivia: { icon: 'trivia', focused: 'trivia' },
   Map: { icon: 'map', focused: 'mapFocused' },
   Profile: { icon: 'profile', focused: 'profileFocused' },
@@ -100,9 +100,9 @@ export function MainTabNavigator() {
     >
       <Tab.Screen name="Home" component={HomeTabScreen} options={{ tabBarLabel: 'בית' }} />
       <Tab.Screen
-        name="MyMitzvot"
-        component={MyMitzvotTabScreen}
-        options={{ tabBarLabel: 'המצוות שלי' }}
+        name="Calendar"
+        component={CalendarTabScreen}
+        options={{ tabBarLabel: 'יומן' }}
       />
       <Tab.Screen
         name="Trivia"

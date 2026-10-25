@@ -22,7 +22,7 @@ From the repo root, run:
 node .cursor/skills/open-app-screen/scripts/open-app-screen.mjs [screen]
 ```
 
-`screen` is one of `home`, `mymitzvot`, `trivia`, `map`, `profile` (Hebrew names `בית`, `המצוות שלי`, `טריוויה`, `מפה`, `פרופיל` also work). Omit it to open Home.
+`screen` is one of `home`, `calendar`, `trivia`, `map`, `profile` (Hebrew names `בית`, `יומן`, `טריוויה`, `מפה`, `פרופיל` also work). Omit it to open Home. `המצוות שלי` still aliases to the calendar tab coordinate.
 
 The script starts AVD `MitzvaPlus_API36` when no emulator is connected, points Metro at port 8081, sets the simulated location, opens `com.mitzvahapp.app`, connects the saved dev server if the Expo launcher is showing, and taps the tab.
 

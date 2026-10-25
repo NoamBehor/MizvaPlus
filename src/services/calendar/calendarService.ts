@@ -5,11 +5,15 @@ import { logDiagnosticEvent } from '@/services/diagnostics/diagnosticLogger';
 import { CALENDAR_CACHE_STORAGE_KEY } from '@/services/diagnostics/constants';
 import type {
   CalendarDayInfo,
+  CalendarHebrewMonth,
   CalendarLocationInput,
   HebrewCalendarEvent,
   HebrewCalendarProvider,
 } from '@/types/calendar';
-import { buildCalendarDayCacheKey } from '@/utils/calendarLocation';
+import {
+  buildCalendarDayCacheKey,
+  buildCalendarLocationCacheKey,
+} from '@/utils/calendarLocation';
 import { getCalendarDateKey } from '@/utils/timezone';
 import { getJson, setJson } from '@/utils/storage';
 import { useDiagnosticsStore } from '@/store/diagnosticsStore';
@@ -26,7 +30,14 @@ interface CalendarCacheStore {
   days: Record<string, CachedDayEntry>;
 }
 
+interface CachedMonthEntry {
+  savedAt: number;
+  data: CalendarHebrewMonth;
+}
+
 export class CalendarService {
+  private monthCache = new Map<string, CachedMonthEntry>();
+
   constructor(private readonly provider: HebrewCalendarProvider) {}
 
   async getTodayInfo(
@@ -112,6 +123,34 @@ export class CalendarService {
         error: error instanceof Error ? error.message : 'provider_error',
       }, location);
       return unavailable;
+    }
+  }
+
+  async getHebrewMonth(
+    hebrewYear: number,
+    hebrewMonth: number,
+    location?: CalendarLocationInput,
+  ): Promise<CalendarHebrewMonth> {
+    const cacheKey = `month:${hebrewYear}:${hebrewMonth}:${buildCalendarLocationCacheKey(location)}`;
+    const cached = this.monthCache.get(cacheKey);
+
+    if (cached && Date.now() - cached.savedAt <= CACHE_TTL_MS) {
+      return this.withMonthFreshness(cached.data, 'cached');
+    }
+
+    try {
+      const fresh = await this.withTimeout(
+        this.provider.getHebrewMonth(hebrewYear, hebrewMonth, location),
+        20000,
+      );
+      this.monthCache.set(cacheKey, { savedAt: Date.now(), data: fresh });
+      return this.withMonthFreshness(fresh, 'fresh');
+    } catch {
+      if (cached) {
+        return this.withMonthFreshness(cached.data, 'cached');
+      }
+
+      throw new Error('calendar_month_unavailable');
     }
   }
 
@@ -224,6 +263,19 @@ export class CalendarService {
       fromCache: snapshot.fromCache,
       cacheVersion: snapshot.cacheVersion,
     });
+  }
+
+  private withMonthFreshness(
+    month: CalendarHebrewMonth,
+    freshness: CalendarDayInfo['freshness'],
+  ): CalendarHebrewMonth {
+    return {
+      ...month,
+      cells: month.cells.map((cell) => ({
+        ...cell,
+        dayInfo: { ...cell.dayInfo, freshness },
+      })),
+    };
   }
 
   private unavailableDayInfo(dateKey: string): CalendarDayInfo {

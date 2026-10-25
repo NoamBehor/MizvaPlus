@@ -18,7 +18,7 @@ export function ProfileManageMitzvotBanner() {
   const fontsLoaded = useHomeFonts();
 
   const handlePress = () => {
-    navigateToMyMitzvot();
+    navigateToMyMitzvot({ openEdit: true });
   };
 
   return (

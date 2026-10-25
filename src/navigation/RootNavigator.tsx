@@ -31,6 +31,7 @@ import { OnboardingScreen } from '@/screens/onboarding/OnboardingScreen';
 import { SplashScreen } from '@/screens/onboarding/SplashScreen';
 
 import { MitzvahDetailScreen } from '@/screens/mitzvot/MitzvahDetailScreen';
+import { MyMitzvotScreen } from '@/screens/mitzvot/MyMitzvotScreen';
 import { PrayerReaderScreen } from '@/screens/prayer/PrayerReaderScreen';
 import { ParashaPodcastPlayerScreen } from '@/screens/podcast/ParashaPodcastPlayerScreen';
 import { DiagnosticsScreen } from '@/screens/dev/DiagnosticsScreen';
@@ -79,6 +80,8 @@ export function RootNavigator() {
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
 
         <Stack.Screen name="Main" component={MainTabNavigator} />
+
+        <Stack.Screen name="MyMitzvot" component={MyMitzvotScreen} />
 
         <Stack.Screen name="MitzvahDetail" component={MitzvahDetailScreen} />
 

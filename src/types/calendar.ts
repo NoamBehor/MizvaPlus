@@ -73,6 +73,21 @@ export interface CalendarLocationInput {
   longitude?: number;
 }
 
+export interface CalendarMonthCell {
+  dateKey: string;
+  inCurrentMonth: boolean;
+  dayInfo: CalendarDayInfo;
+}
+
+export interface CalendarHebrewMonth {
+  hebrewYear: number;
+  hebrewMonth: number;
+  hebrewMonthName: string;
+  hebrewYearLabel: string;
+  gregorianRangeLabel: string;
+  cells: CalendarMonthCell[];
+}
+
 export interface HebrewCalendarProvider {
   getDayInfo(
     dateKey: string,
@@ -83,4 +98,9 @@ export interface HebrewCalendarProvider {
     daysAhead: number,
     location?: CalendarLocationInput,
   ): Promise<HebrewCalendarEvent[]>;
+  getHebrewMonth(
+    hebrewYear: number,
+    hebrewMonth: number,
+    location?: CalendarLocationInput,
+  ): Promise<CalendarHebrewMonth>;
 }

@@ -15,7 +15,7 @@ import { formatPodcastDuration } from '@/utils/podcastFormat';
 
 const MAIN_TAB_ROUTES = new Set([
   'Home',
-  'MyMitzvot',
+  'Calendar',
   'Trivia',
   'Map',
   'Profile',

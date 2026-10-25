@@ -6,6 +6,7 @@ export type RootStackParamList = {
   ResetPassword: undefined;
   Onboarding: undefined;
   Main: { screen?: keyof MainTabParamList } | undefined;
+  MyMitzvot: { openEdit?: boolean } | undefined;
   MitzvahDetail: { mitzvahId: string };
   PrayerReader: {
     prayerId?: string;
@@ -19,7 +20,7 @@ export type RootStackParamList = {
 
 export type MainTabParamList = {
   Home: undefined;
-  MyMitzvot: undefined;
+  Calendar: undefined;
   Trivia: undefined;
   Map: undefined;
   Profile: undefined;

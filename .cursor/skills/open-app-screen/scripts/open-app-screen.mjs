@@ -12,6 +12,7 @@ const TABS = {
   profile: { x: 108, y: 2260 },
   map: { x: 324, y: 2260 },
   trivia: { x: 540, y: 2260 },
+  calendar: { x: 756, y: 2260 },
   mymitzvot: { x: 756, y: 2260 },
   home: { x: 972, y: 2260 },
 };
@@ -19,9 +20,11 @@ const TABS = {
 const ALIASES = {
   home: 'home',
   בית: 'home',
-  mymitzvot: 'mymitzvot',
-  'my-mitzvot': 'mymitzvot',
-  'המצוות שלי': 'mymitzvot',
+  calendar: 'calendar',
+  יומן: 'calendar',
+  mymitzvot: 'calendar',
+  'my-mitzvot': 'calendar',
+  'המצוות שלי': 'calendar',
   trivia: 'trivia',
   טריוויה: 'trivia',
   map: 'map',
@@ -189,7 +192,7 @@ async function main() {
   const screen = ALIASES[requested] ?? ALIASES[process.argv[2]?.trim() ?? ''];
   if (!screen) {
     console.error(
-      'Unknown screen. Use home, mymitzvot, trivia, map, or profile.',
+      'Unknown screen. Use home, calendar, trivia, map, or profile.',
     );
     process.exit(1);
   }

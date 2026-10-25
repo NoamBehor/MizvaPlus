@@ -7,7 +7,7 @@ import { getTabBarScrollClearance } from '@/navigation/tabBarInsets';
 
 const MAIN_TAB_ROUTES = new Set([
   'Home',
-  'MyMitzvot',
+  'Calendar',
   'Trivia',
   'Map',
   'Profile',

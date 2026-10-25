@@ -30,6 +30,7 @@ const checks = [
   [
     'All five tab screens wrapped',
     wrappers.includes('HomeTabScreen') &&
+      wrappers.includes('CalendarTabScreen') &&
       wrappers.includes('MapTabScreen') &&
       wrappers.includes('TriviaTabScreen'),
   ],

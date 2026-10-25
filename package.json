@@ -55,6 +55,7 @@
     "typecheck": "tsc --noEmit",
     "validate": "npx expo-doctor",
     "verify:phase8": "node scripts/verify-phase8.mjs",
+    "verify:calendar-month": "node scripts/verify-calendar-month.mjs",
     "verify:phase9": "node scripts/verify-phase9.mjs",
     "verify:phase9.6": "node scripts/verify-phase9.mjs",
     "verify:phase10": "node scripts/verify-phase10.mjs",

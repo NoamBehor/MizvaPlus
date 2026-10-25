@@ -14,6 +14,7 @@ import {
 } from '@/constants/calendarMitzvahMap';
 import type {
   CalendarDayInfo,
+  CalendarHebrewMonth,
   CalendarLocationInput,
   CalendarLocationSource,
   HebrewCalendarEvent,
@@ -22,6 +23,10 @@ import type {
   HebrewDateParts,
   WeeklyParasha,
 } from '@/types/calendar';
+import {
+  buildHebrewMonthGridKeys,
+  formatGregorianRangeLabel,
+} from '@/services/calendar/hebrewMonthGrid';
 import { buildCalendarLocationCacheKey } from '@/utils/calendarLocation';
 import {
   buildWeeklyParashaFromEvent,
@@ -369,6 +374,51 @@ export class HebcalCalendarProvider implements HebrewCalendarProvider {
   ): Promise<CalendarDayInfo> {
     const resolved = resolveLocation(locationInput);
     return buildDayInfo(dateKey, resolved);
+  }
+
+  async getHebrewMonth(
+    hebrewYear: number,
+    hebrewMonth: number,
+    locationInput?: CalendarLocationInput,
+  ): Promise<CalendarHebrewMonth> {
+    const resolved = resolveLocation(locationInput);
+    const monthStart = new HDate(1, hebrewMonth, hebrewYear);
+    const firstDateKey = gregorianDateKeyFromHDate(monthStart);
+    const keys = buildHebrewMonthGridKeys(
+      firstDateKey,
+      monthStart.daysInMonth(),
+      monthStart.getDay(),
+    );
+    const cells = keys.map((key) => ({
+      dateKey: key.dateKey,
+      inCurrentMonth: key.inCurrentMonth,
+      dayInfo: buildDayInfo(key.dateKey, resolved),
+    }));
+    const inMonth = cells.filter((cell) => cell.inCurrentMonth);
+    const firstInMonth = inMonth[0];
+    const lastInMonth = inMonth[inMonth.length - 1];
+    const hebrewYearLabel =
+      monthStart
+        .renderGematriya(true)
+        .replace(/[\u0591-\u05C7]/g, '')
+        .trim()
+        .split(/\s+/)
+        .at(-1) ?? String(hebrewYear);
+
+    return {
+      hebrewYear: monthStart.getFullYear(),
+      hebrewMonth: monthStart.getMonth(),
+      hebrewMonthName:
+        firstInMonth?.dayInfo.hebrewDate.monthName ??
+        HEBREW_MONTH_NAMES[hebrewMonth] ??
+        '',
+      hebrewYearLabel,
+      gregorianRangeLabel: formatGregorianRangeLabel(
+        firstInMonth?.dateKey ?? firstDateKey,
+        lastInMonth?.dateKey ?? firstDateKey,
+      ),
+      cells,
+    };
   }
 
   async getUpcomingEvents(

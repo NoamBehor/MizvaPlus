@@ -38,9 +38,15 @@ export function navigateToResetPassword(): void {
   }
 }
 
-export function navigateToMyMitzvot(): void {
+export function navigateToMyMitzvot(params?: { openEdit?: boolean }): void {
   if (navigationRef.isReady()) {
-    navigationRef.navigate('Main', { screen: 'MyMitzvot' });
+    navigationRef.navigate('MyMitzvot', params);
+  }
+}
+
+export function navigateToCalendar(): void {
+  if (navigationRef.isReady()) {
+    navigationRef.navigate('Main', { screen: 'Calendar' });
   }
 }
 

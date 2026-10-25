@@ -2,9 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { Pressable, Text, View } from 'react-native';
 
-import { useNavigation } from '@react-navigation/native';
-
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 
 
@@ -35,15 +33,20 @@ const CATEGORIES: MitzvahCategory[] = ['daily', 'fast', 'holiday'];
 
 
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type MyMitzvotScreenProps = NativeStackScreenProps<
+  RootStackParamList,
+  'MyMitzvot'
+>;
 
+export function MyMitzvotScreen({ navigation, route }: MyMitzvotScreenProps) {
+  const openEdit = route.params?.openEdit === true;
+  const [isEditing, setIsEditing] = useState(openEdit);
 
-
-export function MyMitzvotScreen() {
-
-  const navigation = useNavigation<NavigationProp>();
-
-  const [isEditing, setIsEditing] = useState(false);
+  useEffect(() => {
+    if (openEdit) {
+      setIsEditing(true);
+    }
+  }, [openEdit]);
 
 
 
@@ -115,7 +118,23 @@ export function MyMitzvotScreen() {
 
       >
 
-        <Text style={typography.hero}>המצוות שלי</Text>
+        <Pressable
+
+          onPress={() => navigation.goBack()}
+
+          accessibilityRole="button"
+
+          accessibilityLabel="חזרה"
+
+          style={{ minHeight: 44, justifyContent: 'center' }}
+
+        >
+
+          <Text style={typography.label}>→ חזרה</Text>
+
+        </Pressable>
+
+        <Text style={[typography.hero, { fontSize: 24, flex: 1 }]}>המצוות שלי</Text>
 
         {!isEditing ? (
 
