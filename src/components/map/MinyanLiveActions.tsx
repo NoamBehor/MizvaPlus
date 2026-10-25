@@ -16,6 +16,9 @@ interface MinyanLiveActionsProps {
   mutationSynagogueOsmKey: string | null;
   mutationError: string | null;
   successMessage: string | null;
+  actionsDisabled?: boolean;
+  disabledReason?: string | null;
+  accuracyHint?: string | null;
   onCreate: (attendance: number) => Promise<boolean>;
   onUpdate: (reportId: string, attendance: number) => Promise<boolean>;
   onFulfill: (reportId: string) => Promise<boolean>;
@@ -35,6 +38,9 @@ export function MinyanLiveActions({
   mutationSynagogueOsmKey,
   mutationError,
   successMessage,
+  actionsDisabled = false,
+  disabledReason = null,
+  accuracyHint = null,
   onCreate,
   onUpdate,
   onFulfill,
@@ -50,6 +56,12 @@ export function MinyanLiveActions({
       setMode('idle');
     }
   }, [successMessage]);
+
+  useEffect(() => {
+    if (actionsDisabled) {
+      setMode('idle');
+    }
+  }, [actionsDisabled]);
 
   if (!isAuthenticated) {
     return (
@@ -82,7 +94,19 @@ export function MinyanLiveActions({
         </View>
       ) : null}
 
-      {mode === 'idle' ? (
+      {accuracyHint && !actionsDisabled ? (
+        <Text style={[typography.caption, { color: colors.goldDeep }]}>
+          {accuracyHint}
+        </Text>
+      ) : null}
+
+      {actionsDisabled && disabledReason ? (
+        <Text style={[typography.bodySmall, { color: colors.muted }]}>
+          {disabledReason}
+        </Text>
+      ) : null}
+
+      {!actionsDisabled && mode === 'idle' ? (
         <View className="gap-2">
           {minyan && !ownsActiveReport ? (
             <Pressable
@@ -94,7 +118,7 @@ export function MinyanLiveActions({
               disabled={isMutating}
               className="rounded-xl px-4 py-3"
               style={{
-                backgroundColor: colors.primary,
+                backgroundColor: colors.goldDeep,
                 opacity: isMutating ? 0.7 : 1,
               }}
               accessibilityRole="button"
@@ -126,7 +150,7 @@ export function MinyanLiveActions({
               disabled={isMutating}
               className="rounded-xl px-4 py-3"
               style={{
-                backgroundColor: colors.accent,
+                backgroundColor: colors.goldDeep,
                 opacity: isMutating ? 0.7 : 1,
               }}
               accessibilityRole="button"
@@ -154,7 +178,7 @@ export function MinyanLiveActions({
               disabled={isMutating}
               className="rounded-xl px-4 py-3"
               style={{
-                backgroundColor: colors.accent,
+                backgroundColor: colors.goldDeep,
                 opacity: isMutating ? 0.7 : 1,
               }}
               accessibilityRole="button"
@@ -174,7 +198,7 @@ export function MinyanLiveActions({
         </View>
       ) : null}
 
-      {mode === 'create' ? (
+      {!actionsDisabled && mode === 'create' ? (
         <View className="gap-2">
           <Text style={typography.caption}>{synagogueName}</Text>
           <MinyanAttendanceInput
@@ -200,7 +224,7 @@ export function MinyanLiveActions({
         </View>
       ) : null}
 
-      {mode === 'update' && minyan ? (
+      {!actionsDisabled && mode === 'update' && minyan ? (
         <View className="gap-2">
           <MinyanAttendanceInput
             initialValue={minyan.currentAttendance}

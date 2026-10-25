@@ -34,6 +34,9 @@ const GLYPHS = {
   logout: 'logout',
   pencil: 'pencil-outline',
   clipboardCheck: 'clipboard-check-outline',
+  crosshairs: 'crosshairs-gps',
+  refresh: 'refresh',
+  navigate: 'navigation-variant',
 } as const satisfies Record<string, GlyphName>;
 
 export type AppIconName = keyof typeof GLYPHS;

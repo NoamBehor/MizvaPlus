@@ -1,7 +1,10 @@
-import { ActivityIndicator, Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
+import { MapFilterChips } from '@/components/map/MapFilterChips';
 import { colors } from '@/constants/colors';
-import { borderRadius, shadows, spacing, typography } from '@/constants/theme';
+import { appRootLayoutStyle } from '@/constants/layoutDirection';
+import { shadows, spacing, typography } from '@/constants/theme';
+import type { MapSynagogueFilter } from '@/utils/mapSynagogues';
 
 export type MapLocationTone = 'ok' | 'fallback' | 'loading' | 'unknown';
 
@@ -9,9 +12,9 @@ interface MapScreenHeaderProps {
   locationLabel?: string | null;
   locationTone?: MapLocationTone;
   synagogueCount?: number | null;
-  isRefreshing?: boolean;
-  onRefreshLocation?: () => void;
-  onRefreshSynagogues?: () => void;
+  activeMinyanCount?: number;
+  filter?: MapSynagogueFilter;
+  onFilterChange?: (filter: MapSynagogueFilter) => void;
 }
 
 function locationChipColors(tone: MapLocationTone) {
@@ -21,7 +24,7 @@ function locationChipColors(tone: MapLocationTone) {
     case 'loading':
       return { bg: colors.surface, text: colors.muted, border: colors.border };
     case 'ok':
-      return { bg: '#E8F5E9', text: colors.success, border: '#A7D7B5' };
+      return { bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE' };
     default:
       return { bg: colors.surface, text: colors.muted, border: colors.border };
   }
@@ -31,108 +34,74 @@ export function MapScreenHeader({
   locationLabel,
   locationTone = 'unknown',
   synagogueCount,
-  isRefreshing = false,
-  onRefreshLocation,
-  onRefreshSynagogues,
+  activeMinyanCount = 0,
+  filter = 'all',
+  onFilterChange,
 }: MapScreenHeaderProps) {
   const chip = locationChipColors(locationTone);
+  const knownCount = typeof synagogueCount === 'number' ? synagogueCount : 0;
 
   return (
-    <View className="px-4 pb-3 pt-2">
-      <View
-        className="overflow-hidden rounded-2xl border px-4 py-4"
-        style={[
-          shadows.card,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-            borderRightWidth: 4,
-            borderRightColor: colors.accent,
-          },
-        ]}
-      >
-        <Text style={typography.title}>בתי כנסת בקרבתך</Text>
-        <Text style={[typography.bodySmall, { marginTop: spacing.xs }]}>
-          מצאו מקומות תפילה, מניינים פעילים וניווט לפי המיקום שלכם
-        </Text>
-
-        <View className="mt-3 flex-row items-center justify-between gap-2">
-          <View className="min-w-0 flex-1 flex-row flex-wrap items-center gap-2">
-            {locationLabel ? (
-              <View
-                className="rounded-full border px-3 py-1.5"
-                style={{
-                  backgroundColor: chip.bg,
-                  borderColor: chip.border,
-                  maxWidth: '100%',
-                }}
-              >
-                <Text
-                  style={[
-                    typography.caption,
-                    {
-                      color: chip.text,
-                      fontWeight: '600',
-                    },
-                  ]}
-                  numberOfLines={2}
-                >
-                  {locationTone === 'loading' ? 'מאתרים מיקום…' : locationLabel}
-                </Text>
-              </View>
-            ) : null}
-
-            {typeof synagogueCount === 'number' ? (
-              <View
-                className="rounded-full px-3 py-1.5"
-                style={{ backgroundColor: colors.background }}
-              >
-                <Text style={[typography.caption, { fontWeight: '700' }]}>
-                  {`${synagogueCount} בתי כנסת`}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          <View className="flex-row items-center gap-2">
-            {onRefreshLocation ? (
-              <Pressable
-                onPress={onRefreshLocation}
-                disabled={isRefreshing}
-                accessibilityRole="button"
-                accessibilityLabel="רענון מיקום"
-                className="h-11 w-11 items-center justify-center rounded-xl border"
-                style={{
-                  borderColor: colors.border,
-                  backgroundColor: colors.background,
-                  opacity: isRefreshing ? 0.6 : 1,
-                }}
-              >
-                {isRefreshing ? (
-                  <ActivityIndicator size="small" color={colors.accent} />
-                ) : (
-                  <Text style={{ fontSize: 18 }}>📍</Text>
-                )}
-              </Pressable>
-            ) : null}
-            {onRefreshSynagogues ? (
-              <Pressable
-                onPress={onRefreshSynagogues}
-                disabled={isRefreshing}
-                accessibilityRole="button"
-                accessibilityLabel="רענון רשימת בתי כנסת"
-                className="h-11 w-11 items-center justify-center rounded-xl"
-                style={{
-                  backgroundColor: colors.primary,
-                  opacity: isRefreshing ? 0.6 : 1,
-                }}
-              >
-                <Text style={{ fontSize: 18 }}>🔄</Text>
-              </Pressable>
-            ) : null}
-          </View>
+    <View
+      className="px-5 pb-3 pt-2"
+      style={[
+        appRootLayoutStyle,
+        {
+          flex: undefined,
+          backgroundColor: colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.border,
+          ...shadows.pill,
+        },
+      ]}
+    >
+      <View className="flex-row items-start justify-between gap-3">
+        <View className="min-w-0 flex-1">
+          <Text style={[typography.title, { fontSize: 22 }]} numberOfLines={1}>
+            בתי כנסת בקרבתך
+          </Text>
+          <Text style={[typography.caption, { marginTop: spacing.xs }]}>
+            מצאו מקומות תפילה, מניינים פעילים וניווט לפי המיקום שלכם
+          </Text>
         </View>
+
+        {locationLabel ? (
+          <View
+            className="rounded-full border px-2.5 py-1"
+            style={{
+              backgroundColor: chip.bg,
+              borderColor: chip.border,
+              maxWidth: 132,
+              flexShrink: 0,
+            }}
+          >
+            <Text
+              style={[
+                typography.caption,
+                {
+                  color: chip.text,
+                  fontWeight: '600',
+                  fontSize: 11,
+                },
+              ]}
+              numberOfLines={2}
+            >
+              {locationTone === 'loading' ? 'מאתרים מיקום…' : locationLabel}
+            </Text>
+          </View>
+        ) : null}
       </View>
+
+      {onFilterChange ? (
+        <View className="mt-3">
+          <MapFilterChips
+            filter={filter}
+            synagogueCount={knownCount}
+            activeMinyanCount={activeMinyanCount}
+            onFilterChange={onFilterChange}
+          />
+        </View>
+      ) : null}
     </View>
   );
 }

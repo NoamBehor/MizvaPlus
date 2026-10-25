@@ -110,7 +110,14 @@ function main() {
   record(
     'map: no hardcoded Jerusalem center',
     !mapScreen.includes('DEV_PREVIEW_DEFAULT_COORDINATES') &&
-      mapScreen.includes('useUserLocation()'),
+      mapScreen.includes('useUserLocation({ watch: true })'),
+  );
+
+  record(
+    'map: watches GPS only while Map tab is mounted',
+    useUserLocation.includes('watchLocation') &&
+      useUserLocation.includes('watch?: boolean') &&
+      !read('src/screens/home/HomeScreen.tsx').includes('watch: true'),
   );
 
   record(
@@ -146,9 +153,8 @@ function main() {
   record(
     'map: Android MapView is not clipped by overflow hidden',
     !mapScreen.includes('overflow-hidden') &&
-      mapScreen.includes(
-        "overflow: Platform.OS === 'ios' ? 'hidden' : 'visible'",
-      ),
+      mapScreen.includes('<MapView') &&
+      !/MapView[\s\S]{0,500}overflow:\s*'hidden'/.test(mapScreen),
   );
 
   record(
@@ -158,9 +164,10 @@ function main() {
       mapScreen.includes('{cacheNotice}'),
   );
 
+  const synagogueSheetSrc = read('src/components/map/MapSynagogueSheet.tsx');
   record(
     'map: synagogue fetch error is distinct from Google tile failure',
-    mapScreen.includes('OpenStreetMap (Overpass)') &&
+    synagogueSheetSrc.includes('OpenStreetMap (Overpass)') &&
       mapScreen.includes('אריחי Google Maps') &&
       mapScreen.includes('map_tiles_timed_out') &&
       mapScreen.includes('map_tiles_loaded'),

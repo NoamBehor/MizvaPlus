@@ -1,5 +1,6 @@
 import { Text, View } from 'react-native';
 
+import { ProgressBar } from '@/components/common/ProgressBar';
 import { colors } from '@/constants/colors';
 import { MINYAN_REQUIRED_COUNT } from '@/constants/minyanLive';
 import { typography } from '@/constants/theme';
@@ -13,54 +14,71 @@ interface MinyanLiveSectionProps {
 
 export function MinyanLiveSection({ minyan, compact = false }: MinyanLiveSectionProps) {
   const updatedLabel = formatHebrewRelativeTime(minyan.updatedAt);
+  const percentage = (minyan.currentAttendance / MINYAN_REQUIRED_COUNT) * 100;
+
+  if (compact) {
+    return (
+      <View className="flex-row items-center gap-1.5">
+        <Text
+          style={[
+            typography.caption,
+            { color: colors.goldDeep, fontWeight: '700' },
+          ]}
+        >
+          {`חסרים ${minyan.missingCount}`}
+        </Text>
+        <Text style={[typography.caption, { color: colors.muted }]}>
+          {`עודכן ${updatedLabel}`}
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View
-      className="gap-1 rounded-xl px-3 py-2"
+      className="gap-1.5 rounded-2xl border px-3 py-3"
       style={{
-        backgroundColor: 'rgba(201, 162, 39, 0.12)',
-        borderColor: colors.accent,
-        borderWidth: 1,
+        backgroundColor: 'rgba(217, 119, 6, 0.08)',
+        borderColor: '#FDE68A',
       }}
     >
-      <Text
-        style={[
-          typography.label,
-          {
-            color: colors.accent,
-            fontWeight: '700',
-          },
-        ]}
-      >
-        🟡 מניין נדרש
-      </Text>
+      <View className="flex-row items-center justify-between gap-2">
+        <Text
+          style={[
+            typography.label,
+            {
+              color: '#78350F',
+              fontWeight: '800',
+              fontSize: 15,
+            },
+          ]}
+        >
+          {`חסרים ${minyan.missingCount} מתפללים למניין`}
+        </Text>
+        <Text style={[typography.caption, { color: '#92400E', fontWeight: '700' }]}>
+          {`${minyan.currentAttendance} מתוך ${MINYAN_REQUIRED_COUNT} הגיעו`}
+        </Text>
+      </View>
 
-      <Text style={[typography.body, { fontWeight: '600' }]}>
-        {`חסרים ${minyan.missingCount} למניין`}
-      </Text>
+      <ProgressBar
+        percentage={percentage}
+        variant="default"
+        showPercentageLabel={false}
+        fillColor={colors.goldDeep}
+        height={10}
+        accessibilityLabel={`מניין ${minyan.currentAttendance} מתוך ${MINYAN_REQUIRED_COUNT}`}
+      />
 
-      {!compact ? (
-        <>
-          <Text style={typography.bodySmall}>
-            {`${minyan.currentAttendance} מתוך ${MINYAN_REQUIRED_COUNT} נמצאים`}
+      <View className="flex-row items-center justify-between">
+        <Text style={[typography.caption, { color: colors.muted }]}>
+          {`עודכן ${updatedLabel}`}
+        </Text>
+        {minyan.comingCount > 0 ? (
+          <Text style={[typography.caption, { color: colors.secondary }]}>
+            {`${minyan.comingCount} בדרך`}
           </Text>
-          <Text style={[typography.caption, { color: colors.muted }]}>
-            {`עודכן ${updatedLabel}`}
-          </Text>
-          {minyan.comingCount > 0 ? (
-            <Text style={[typography.bodySmall, { color: colors.secondary }]}>
-              {`${minyan.comingCount} בדרך`}
-            </Text>
-          ) : null}
-        </>
-      ) : (
-        <>
-          <Text style={typography.caption}>{`חסרים ${minyan.missingCount}`}</Text>
-          <Text style={[typography.caption, { color: colors.muted }]}>
-            {`עודכן ${updatedLabel}`}
-          </Text>
-        </>
-      )}
+        ) : null}
+      </View>
     </View>
   );
 }

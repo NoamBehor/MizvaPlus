@@ -45,6 +45,26 @@ export function formatDistanceMeters(meters: number): string {
   return `${rounded} ק"מ`;
 }
 
+/** Rough walking ETA for map presentation. ~80 m/min. */
+const WALKING_METERS_PER_MINUTE = 80;
+
+export function formatWalkingEta(distanceMeters: number): string | null {
+  if (!Number.isFinite(distanceMeters) || distanceMeters < 0) {
+    return null;
+  }
+
+  const minutes = Math.max(
+    1,
+    Math.round(distanceMeters / WALKING_METERS_PER_MINUTE),
+  );
+
+  if (minutes === 1) {
+    return "זמן הגעה משוער: דקה הליכה";
+  }
+
+  return `זמן הגעה משוער: ${minutes} דק' הליכה`;
+}
+
 /**
  * Approximate lat/lng offset for a given distance in meters.
  * Useful for generating nearby sample points relative to a user location.

@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  FlatList,
+  Dimensions,
   Platform,
-  Pressable,
+  ScrollView,
   Text,
   View,
 } from 'react-native';
@@ -11,10 +10,10 @@ import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
-import { MapFloatingControls } from '@/components/map/MapFloatingControls';
 import { MapMarkerLegend } from '@/components/map/MapMarkerLegend';
 import { MapScreenHeader } from '@/components/map/MapScreenHeader';
-import { SynagogueListCard } from '@/components/map/SynagogueListCard';
+import { LoadingPanel, MapStatePanel } from '@/components/map/MapStatePanel';
+import { MapSynagogueSheet } from '@/components/map/MapSynagogueSheet';
 import { colors } from '@/constants/colors';
 import { DEFAULT_PLACE_NAME } from '@/constants/defaultPlace';
 import {
@@ -24,8 +23,9 @@ import {
   SYNAGOGUE_FOCUS_LATITUDE_DELTA,
   SYNAGOGUE_FOCUS_LONGITUDE_DELTA,
 } from '@/constants/synagogues';
-import { shadows, typography } from '@/constants/theme';
+import { typography } from '@/constants/theme';
 import { useMinyanLive } from '@/hooks/useMinyanLive';
+import { useScrollBottomInset } from '@/hooks/useScrollBottomInset';
 import { useSynagogues } from '@/hooks/useSynagogues';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { logDiagnosticEvent } from '@/services/diagnostics/diagnosticLogger';
@@ -35,97 +35,29 @@ import {
 } from '@/services/location';
 import { useAppStore } from '@/store/appStore';
 import { useDiagnosticsStore } from '@/store/diagnosticsStore';
-import type { SynagogueWithMinyan } from '@/services/minyanLive/minyanLiveTypes';
 import type { Synagogue } from '@/types/synagogue';
-import { filterSynagoguesForMap } from '@/utils/mapSynagogues';
+import {
+  filterSynagoguesByMapFilter,
+  filterSynagoguesForMap,
+  resolveMarkerPinColor,
+  resolveSelectedSynagogueId,
+  type MapSynagogueFilter,
+} from '@/utils/mapSynagogues';
 
-function MapStatePanel({
-  title,
-  description,
-  actionLabel,
-  onAction,
-}: {
-  title: string;
-  description: string;
-  actionLabel?: string;
-  onAction?: () => void;
-}) {
-  return (
-    <View className="flex-1 items-center justify-center px-6">
-      <Text style={[typography.title, { textAlign: 'center', marginBottom: 12 }]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          typography.bodySmall,
-          { textAlign: 'center', marginBottom: 24, lineHeight: 22 },
-        ]}
-      >
-        {description}
-      </Text>
-      {actionLabel && onAction ? (
-        <Pressable
-          onPress={onAction}
-          className="rounded-xl px-6 py-3"
-          style={{ backgroundColor: colors.primary }}
-          accessibilityRole="button"
-        >
-          <Text
-            style={{
-              color: colors.white,
-              fontWeight: '700',
-              fontSize: 16,
-              textAlign: 'center',
-              writingDirection: 'rtl',
-            }}
-          >
-            {actionLabel}
-          </Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-function LoadingPanel({ message }: { message: string }) {
-  return (
-    <View className="flex-1 items-center justify-center px-6">
-      <ActivityIndicator size="large" color={colors.accent} />
-      <Text
-        style={[
-          typography.body,
-          { marginTop: 16, textAlign: 'center' },
-        ]}
-      >
-        {message}
-      </Text>
-    </View>
-  );
-}
-
-function resolveMarkerPinColor(
-  synagogue: SynagogueWithMinyan,
-  selectedSynagogueId: string | null,
-): string {
-  if (synagogue.minyan) {
-    return colors.accent;
-  }
-
-  if (selectedSynagogueId === synagogue.id) {
-    return colors.secondary;
-  }
-
-  return colors.primary;
-}
+const MAP_PAGE_HEIGHT = Math.round(Dimensions.get('window').height * 0.45);
 
 export function MapScreen() {
   const mapRef = useRef<MapView | null>(null);
+  const userDidFocusPinRef = useRef(false);
   const [selectedSynagogueId, setSelectedSynagogueId] = useState<string | null>(
     null,
   );
+  const [synagogueFilter, setSynagogueFilter] =
+    useState<MapSynagogueFilter>('all');
   const [mapTilesLoaded, setMapTilesLoaded] = useState(false);
   const [mapTilesTimedOut, setMapTilesTimedOut] = useState(false);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const { scrollPaddingBottom } = useScrollBottomInset();
 
   const {
     location,
@@ -135,7 +67,7 @@ export function MapScreen() {
     errorCode,
     requestPermission,
     refreshLocation,
-  } = useUserLocation();
+  } = useUserLocation({ watch: true });
 
   const latitude = location?.coordinates.latitude;
   const longitude = location?.coordinates.longitude;
@@ -225,32 +157,55 @@ export function MapScreen() {
   }, [synagogues]);
 
   useEffect(() => {
-    if (!__DEV__ || !selectedSynagogueId) {
-      return;
-    }
-
-    const synagogue = synagoguesWithMinyan.find(
-      (item) => item.id === selectedSynagogueId,
+    setSelectedSynagogueId((currentId) =>
+      resolveSelectedSynagogueId(synagoguesWithMinyan, currentId),
     );
-    if (!synagogue) {
+  }, [synagoguesWithMinyan]);
+
+  const selectedSynagogue = useMemo(
+    () =>
+      synagoguesWithMinyan.find((item) => item.id === selectedSynagogueId) ??
+      null,
+    [selectedSynagogueId, synagoguesWithMinyan],
+  );
+
+  useEffect(() => {
+    if (!__DEV__ || !selectedSynagogue) {
       return;
     }
 
     useDiagnosticsStore.getState().setSelectedSynagogue({
-      name: synagogue.name,
-      synagogueId: synagogue.id,
-      synagogueOsmKey: synagogue.id,
-      osmType: synagogue.osmType ?? null,
-      osmId: synagogue.osmId ?? null,
-      latitude: synagogue.coordinates.latitude,
-      longitude: synagogue.coordinates.longitude,
+      name: selectedSynagogue.name,
+      synagogueId: selectedSynagogue.id,
+      synagogueOsmKey: selectedSynagogue.id,
+      osmType: selectedSynagogue.osmType ?? null,
+      osmId: selectedSynagogue.osmId ?? null,
+      latitude: selectedSynagogue.coordinates.latitude,
+      longitude: selectedSynagogue.coordinates.longitude,
     });
     useDiagnosticsStore
       .getState()
-      .setActiveReportOsmKey(synagogue.minyan?.synagogueOsmKey ?? null);
-  }, [selectedSynagogueId, synagoguesWithMinyan]);
+      .setActiveReportOsmKey(selectedSynagogue.minyan?.synagogueOsmKey ?? null);
+  }, [selectedSynagogue]);
+
+  const filteredSynagogues = useMemo(
+    () => filterSynagoguesByMapFilter(synagoguesWithMinyan, synagogueFilter),
+    [synagogueFilter, synagoguesWithMinyan],
+  );
+
+  const nearbySynagogues = useMemo(
+    () =>
+      filteredSynagogues.filter((item) => item.id !== selectedSynagogueId),
+    [filteredSynagogues, selectedSynagogueId],
+  );
+
+  const activeMinyanCount = useMemo(
+    () => synagoguesWithMinyan.filter((item) => Boolean(item.minyan)).length,
+    [synagoguesWithMinyan],
+  );
 
   const focusSynagogue = useCallback((synagogue: Synagogue) => {
+    userDidFocusPinRef.current = true;
     setSelectedSynagogueId(synagogue.id);
     mapRef.current?.animateToRegion(
       {
@@ -264,20 +219,29 @@ export function MapScreen() {
   }, []);
 
   const handleMarkerPress = useCallback((synagogue: Synagogue) => {
-    setSelectedSynagogueId(synagogue.id);
-  }, []);
+    focusSynagogue(synagogue);
+  }, [focusSynagogue]);
 
   const handleRetryAll = useCallback(() => {
     void refreshLocation();
     void refreshSynagogues();
   }, [refreshLocation, refreshSynagogues]);
 
-  const handleRecenterMap = useCallback(() => {
-    if (!initialRegion) {
+  useEffect(() => {
+    if (!coordinates || userDidFocusPinRef.current) {
       return;
     }
-    mapRef.current?.animateToRegion(initialRegion, 350);
-  }, [initialRegion]);
+
+    mapRef.current?.animateToRegion(
+      {
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
+        latitudeDelta: MAP_INITIAL_LATITUDE_DELTA,
+        longitudeDelta: MAP_INITIAL_LONGITUDE_DELTA,
+      },
+      350,
+    );
+  }, [coordinates]);
 
   const showPermissionPrompt =
     !isLocationLoading &&
@@ -355,26 +319,21 @@ export function MapScreen() {
     return null;
   }, [isFallbackLocation, location]);
 
-  const headerRefreshing = isLocationLoading || isSynagoguesLoading;
-
   return (
     <SafeAreaView
       className="flex-1"
-      style={{ backgroundColor: colors.background }}
+      edges={['top']}
+      style={{ backgroundColor: colors.surface }}
     >
       <MapScreenHeader
         locationLabel={headerLocationLabel}
         locationTone={headerLocationTone}
         synagogueCount={
-          !isSynagoguesLoading && synagogues.length > 0 ? synagogues.length : null
+          !isSynagoguesLoading && synagogues.length > 0 ? synagogues.length : 0
         }
-        isRefreshing={headerRefreshing}
-        onRefreshLocation={() => {
-          void refreshLocation();
-        }}
-        onRefreshSynagogues={() => {
-          void refreshSynagogues();
-        }}
+        activeMinyanCount={activeMinyanCount}
+        filter={synagogueFilter}
+        onFilterChange={setSynagogueFilter}
       />
 
       {showServicesDisabled ? (
@@ -428,18 +387,15 @@ export function MapScreen() {
       ) : null}
 
       {showMap && initialRegion ? (
-        <View className="flex-1">
+        <ScrollView
+          className="flex-1"
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          contentContainerStyle={{ paddingBottom: scrollPaddingBottom }}
+        >
           <View
-            className="mx-4 rounded-2xl border"
-            style={[
-              shadows.hero,
-              {
-                height: 340,
-                borderColor: colors.border,
-                backgroundColor: colors.surface,
-                overflow: Platform.OS === 'ios' ? 'hidden' : 'visible',
-              },
-            ]}
+            collapsable={false}
+            style={{ height: MAP_PAGE_HEIGHT, width: '100%' }}
           >
             {androidMapsKeyMissing ? (
               <MapStatePanel
@@ -449,7 +405,7 @@ export function MapScreen() {
             ) : (
               <MapView
                 ref={mapRef}
-                style={{ width: '100%', height: '100%', flex: 1 }}
+                style={{ width: '100%', height: MAP_PAGE_HEIGHT }}
                 provider={
                   Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined
                 }
@@ -492,8 +448,13 @@ export function MapScreen() {
             {!androidMapsKeyMissing && mapTilesTimedOut && !mapTilesLoaded ? (
               <View
                 pointerEvents="none"
-                className="absolute inset-x-4 top-4 rounded-xl px-3 py-2"
-                style={{ backgroundColor: 'rgba(255, 255, 255, 0.92)' }}
+                className="absolute rounded-xl px-3 py-2"
+                style={{
+                  top: 12,
+                  left: 24,
+                  right: 24,
+                  backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                }}
               >
                 <Text
                   style={[
@@ -506,16 +467,10 @@ export function MapScreen() {
               </View>
             ) : null}
             <MapMarkerLegend />
-            <MapFloatingControls
-              onRecenter={handleRecenterMap}
-              onRefreshSynagogues={() => {
-                void refreshSynagogues();
-              }}
-            />
             <View
               pointerEvents="none"
-              className="absolute bottom-2 start-2 rounded px-2 py-1"
-              style={{ backgroundColor: 'rgba(255, 255, 255, 0.88)' }}
+              className="absolute rounded px-2 py-1"
+              style={{ left: 16, top: 12, backgroundColor: 'rgba(255, 255, 255, 0.88)' }}
             >
               <Text
                 style={[
@@ -532,104 +487,49 @@ export function MapScreen() {
             </View>
           </View>
 
-          <View className="flex-1 px-4 pt-3">
-            {isSynagoguesLoading ? (
-              <LoadingPanel message="מחפש בתי כנסת בסביבה..." />
-            ) : null}
-
-            {!isSynagoguesLoading && synagoguesError ? (
-              <MapStatePanel
-                title="לא הצלחנו לטעון בתי כנסת כרגע"
-                description="החיפוש משתמש ב-OpenStreetMap (Overpass), לא ב-Google Maps. כשל באריחי המפה אינו אותה בעיה."
-                actionLabel="נסו שוב"
-                onAction={() => {
-                  void refreshSynagogues();
-                }}
-              />
-            ) : null}
-
-            {!isSynagoguesLoading && !synagoguesError && isEmpty ? (
-              <MapStatePanel
-                title="לא נמצאו בתי כנסת באזור"
-                description={`לא מצאנו בתי כנסת בטווח של ${DEFAULT_SYNAGOGUE_RADIUS_METERS / 1000} ק"מ. נסו לרענן או לבדוק מיקום אחר.`}
-                actionLabel="רענון"
-                onAction={handleRetryAll}
-              />
-            ) : null}
-
-            {!isSynagoguesLoading && !synagoguesError && synagogues.length > 0 ? (
-              <FlatList
-                data={synagoguesWithMinyan}
-                keyExtractor={(item) => item.id}
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingBottom: 24 }}
-                ListHeaderComponent={
-                  <View className="mb-2 gap-1">
-                    <Text style={typography.label}>
-                      {`${synagogues.length} בתי כנסת בקרבתך`}
-                    </Text>
-                    {cacheNotice ? (
-                      <Text style={[typography.caption, { color: colors.muted }]}>
-                        {cacheNotice}
-                      </Text>
-                    ) : null}
-                    {isStaleCache ? (
-                      <Pressable
-                        onPress={() => {
-                          void refreshSynagogues();
-                        }}
-                        accessibilityRole="button"
-                      >
-                        <Text
-                          style={[typography.caption, { color: colors.primary }]}
-                        >
-                          נסו שוב לטעון נתונים חיים
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                    {isAuthenticated && isMinyanLiveLoading ? (
-                      <Text style={[typography.caption, { color: colors.muted }]}>
-                        מעדכן מצב מניינים...
-                      </Text>
-                    ) : null}
-                    {isAuthenticated && minyanLiveLoadError ? (
-                      <Text style={[typography.caption, { color: colors.error }]}>
-                        {minyanLiveLoadError}
-                      </Text>
-                    ) : null}
-                  </View>
-                }
-                renderItem={({ item }) => (
-                  <SynagogueListCard
-                    synagogue={item}
-                    selected={selectedSynagogueId === item.id}
-                    onPress={focusSynagogue}
-                    minyan={item.minyan}
-                    isAuthenticated={isAuthenticated}
-                    isOwnedReport={
-                      item.minyan ? isOwnedReport(item.id, item.minyan.id) : false
-                    }
-                    isMinyanMutating={isMinyanMutating}
-                    minyanMutationSynagogueOsmKey={minyanMutationSynagogueOsmKey}
-                    minyanMutationError={
-                      selectedSynagogueId === item.id ? minyanMutationError : null
-                    }
-                    minyanSuccessMessage={
-                      selectedSynagogueId === item.id ? minyanSuccessMessage : null
-                    }
-                    onCreateMinyan={(attendance) => createReport(item.id, attendance)}
-                    onUpdateMinyan={(reportId, attendance) =>
-                      updateReport(item.id, reportId, attendance)
-                    }
-                    onFulfillMinyan={(reportId) => fulfillReport(item.id, reportId)}
-                    onClearMinyanMutationError={clearMutationError}
-                    onClearMinyanSuccessMessage={clearSuccessMessage}
-                  />
-                )}
-              />
-            ) : null}
-          </View>
-        </View>
+          <MapSynagogueSheet
+            location={location}
+            selectedSynagogue={selectedSynagogue}
+            nearbySynagogues={nearbySynagogues}
+            totalCount={filteredSynagogues.length}
+            isSynagoguesLoading={isSynagoguesLoading}
+            synagoguesError={synagoguesError}
+            isEmpty={isEmpty}
+            emptyDescription={`לא מצאנו בתי כנסת בטווח של ${DEFAULT_SYNAGOGUE_RADIUS_METERS / 1000} ק"מ. נסו לרענן או לבדוק מיקום אחר.`}
+            cacheNotice={cacheNotice}
+            isStaleCache={isStaleCache}
+            isAuthenticated={isAuthenticated}
+            isMinyanLiveLoading={isMinyanLiveLoading}
+            minyanLiveLoadError={minyanLiveLoadError}
+            isMinyanMutating={isMinyanMutating}
+            minyanMutationSynagogueOsmKey={minyanMutationSynagogueOsmKey}
+            minyanMutationError={minyanMutationError}
+            minyanSuccessMessage={minyanSuccessMessage}
+            isOwnedReport={isOwnedReport}
+            onRetrySynagogues={() => {
+              void refreshSynagogues();
+            }}
+            onRetryAll={handleRetryAll}
+            onFocusSynagogue={focusSynagogue}
+            onCreateMinyan={(attendance) =>
+              selectedSynagogue
+                ? createReport(selectedSynagogue.id, attendance)
+                : Promise.resolve(false)
+            }
+            onUpdateMinyan={(reportId, attendance) =>
+              selectedSynagogue
+                ? updateReport(selectedSynagogue.id, reportId, attendance)
+                : Promise.resolve(false)
+            }
+            onFulfillMinyan={(reportId) =>
+              selectedSynagogue
+                ? fulfillReport(selectedSynagogue.id, reportId)
+                : Promise.resolve(false)
+            }
+            onClearMinyanMutationError={clearMutationError}
+            onClearMinyanSuccessMessage={clearSuccessMessage}
+          />
+        </ScrollView>
       ) : null}
     </SafeAreaView>
   );

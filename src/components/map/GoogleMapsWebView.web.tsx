@@ -14,26 +14,15 @@ import type { DevLocationOverrideSelection } from '@/services/devPreview/devLoca
 import type { SynagogueWithMinyan } from '@/services/minyanLive/minyanLiveTypes';
 import type { LocationSource } from '@/types/location';
 import { isValidWgs84Coordinate } from '@/utils/coordinates';
+import {
+  resolveMarkerPinColor,
+  synagogueNeedsMinyan,
+} from '@/utils/mapSynagogues';
 
 const MAP_HEIGHT = 340;
 
 function latitudeDeltaToZoom(latitudeDelta: number): number {
   return Math.max(8, Math.min(18, Math.round(Math.log2(360 / latitudeDelta))));
-}
-
-function resolveMarkerColor(
-  synagogue: SynagogueWithMinyan,
-  selectedSynagogueId: string | null,
-): string {
-  if (synagogue.minyan) {
-    return colors.accent;
-  }
-
-  if (selectedSynagogueId === synagogue.id) {
-    return colors.secondary;
-  }
-
-  return colors.primary;
 }
 
 function buildPinIcon(fillColor: string): google.maps.Icon {
@@ -58,6 +47,9 @@ export interface GoogleMapsWebViewProps {
   userAccuracyMeters: number | null;
   devOverride: DevLocationOverrideSelection | null;
   isFallbackLocation: boolean;
+  fillContainer?: boolean;
+  followUser?: boolean;
+  recenterNonce?: number;
   onMarkerPress: (synagogue: SynagogueWithMinyan) => void;
   onMapReady?: () => void;
 }
@@ -71,6 +63,9 @@ export function GoogleMapsWebView({
   userAccuracyMeters,
   devOverride,
   isFallbackLocation,
+  fillContainer = false,
+  followUser = true,
+  recenterNonce = 0,
   onMarkerPress,
   onMapReady,
 }: GoogleMapsWebViewProps) {
@@ -168,12 +163,22 @@ export function GoogleMapsWebView({
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map || loadState !== 'ready') {
+    if (!map || loadState !== 'ready' || !followUser) {
       return;
     }
 
     map.setCenter({ lat: center.latitude, lng: center.longitude });
-  }, [center.latitude, center.longitude, loadState]);
+  }, [center.latitude, center.longitude, followUser, loadState]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || loadState !== 'ready' || recenterNonce <= 0) {
+      return;
+    }
+
+    map.panTo({ lat: center.latitude, lng: center.longitude });
+    map.setZoom(latitudeDeltaToZoom(MAP_INITIAL_LATITUDE_DELTA));
+  }, [center.latitude, center.longitude, loadState, recenterNonce]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -188,25 +193,25 @@ export function GoogleMapsWebView({
         continue;
       }
 
-      const hasMinyan = Boolean(synagogue.minyan);
+      const needsMinyan = synagogueNeedsMinyan(synagogue.minyan);
       const marker = new google.maps.Marker({
         map,
         position: {
           lat: synagogue.coordinates.latitude,
           lng: synagogue.coordinates.longitude,
         },
-        title: hasMinyan
+        title: needsMinyan
           ? `🟡 חסרים ${synagogue.minyan?.missingCount ?? 0} למניין`
           : synagogue.name,
-        icon: buildPinIcon(resolveMarkerColor(synagogue, selectedSynagogueId)),
-        label: hasMinyan
+        icon: buildPinIcon(resolveMarkerPinColor(synagogue, selectedSynagogueId)),
+        label: needsMinyan
           ? {
               text: '🟡',
               color: colors.text,
               fontSize: '12px',
             }
           : undefined,
-        zIndex: hasMinyan ? 3 : selectedSynagogueId === synagogue.id ? 2 : 1,
+        zIndex: needsMinyan ? 3 : selectedSynagogueId === synagogue.id ? 2 : 1,
       });
 
       marker.addListener('click', () => {
@@ -303,9 +308,10 @@ export function GoogleMapsWebView({
 
   return (
     <View
-      className="mx-4 overflow-hidden rounded-2xl border"
+      className={fillContainer ? 'overflow-hidden' : 'mx-4 overflow-hidden rounded-2xl border'}
       style={{
-        height: MAP_HEIGHT,
+        height: fillContainer ? '100%' : MAP_HEIGHT,
+        flex: fillContainer ? 1 : undefined,
         borderColor: isDevOverride ? colors.accent : colors.border,
         backgroundColor: colors.surface,
       }}

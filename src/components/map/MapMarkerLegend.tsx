@@ -7,12 +7,14 @@ export function MapMarkerLegend() {
   return (
     <View
       pointerEvents="none"
-      className="absolute top-2 end-2 rounded-lg px-2 py-1.5"
+      className="absolute rounded-lg px-2 py-1.5"
       style={{
+        right: 16,
+        top: 16,
         backgroundColor: 'rgba(255, 255, 255, 0.92)',
         borderWidth: 1,
         borderColor: colors.border,
-        maxWidth: 200,
+        maxWidth: 180,
       }}
       accessibilityLabel="מקרא סמלי מפה"
     >
@@ -47,7 +49,7 @@ export function MapMarkerLegend() {
             width: 10,
             height: 10,
             borderRadius: 5,
-            backgroundColor: colors.accent,
+            backgroundColor: colors.goldDeep,
           }}
         />
         <Text style={[typography.caption, { color: colors.muted }]}>

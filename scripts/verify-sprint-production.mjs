@@ -298,7 +298,7 @@ record(
 
 const navRefSrc = read('src/navigation/navigationRef.ts');
 const mapScreenSrc = read('src/screens/map/MapScreen.tsx');
-const synagogueCardSrc = read('src/components/map/SynagogueListCard.tsx');
+const synagogueCardSrc = read('src/components/map/MapSelectedSynagogueCard.tsx');
 
 record(
   'Sprint: My Mitzvot navigation preserved',
@@ -309,7 +309,7 @@ record(
   'Sprint: map screen keeps navigation action',
   synagogueCardSrc.includes('openSynagogueNavigation') &&
     synagogueCardSrc.includes('נווט לבית הכנסת') &&
-    mapScreenSrc.includes('SynagogueListCard'),
+    mapScreenSrc.includes('MapSynagogueSheet'),
 );
 
 record(

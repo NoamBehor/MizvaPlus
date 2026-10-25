@@ -1,0 +1,20 @@
+Physical-device verification (required for GPS geofence; emulator GPS is simulated)
+
+Platform available this session: Android emulator sdk_gphone64_x86_64 (API 36), simulated GPS 32.17158, 35.01156 (110 Gilboa St, Alfei Menashe).
+
+iOS visual acceptance: BLOCKED — no iPhone or iOS simulator was available in this session. Navigation URLs remain Apple Maps (`maps://` / maps.apple.com) per src/utils/synagogueNavigation.ts.
+
+Physical-device checks to run on a real phone before release:
+1. Deny location permission — map shows the existing permission panel, not Alfei Menashe silently.
+2. Location services off — native services-disabled panel.
+3. Grant GPS in Alfei Menashe (or the tester's town) — nearest synagogue is auto-selected from Overpass, distance uses haversine.
+4. Open נווט לבית הכנסת — Android Google Navigation / iOS Apple Maps to the selected coordinates.
+5. Stand farther than 150 m from the selected synagogue — Update/Create minyan is explained/disabled with the existing GEOFENCE Hebrew copy. Server RPC still enforces 120 m + accuracy buffer if the user somehow submits.
+6. Stand next to the synagogue with accuracy worse than 50 m — client getFreshLocationForMinyan still rejects; server LOCATION_ACCURACY_INSUFFICIENT still applies.
+7. Fallback location (GPS unavailable) — header fallback chip; minyan actions disabled with location-unavailable copy.
+
+Emulator evidence (this session):
+- Nearest auto-select: בית הכנסת המרכזי אלפי מנשה at 86 m, minyan create enabled.
+- Selection: פרטים on בית כנסת ארזי הלבנון (312 m) updated the hero; minyan actions disabled as too far.
+- Filter: מניין פעיל hid the nearby list when no live reports existed.
+- Google map tiles timed out on this AVD; synagogue list still loaded from Overpass.

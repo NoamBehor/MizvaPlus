@@ -7,9 +7,11 @@ import {
   getLocationPermissionStatus,
   LocationServiceError,
   requestLocationPermission,
+  watchLocation,
 } from '@/services/location';
 import type {
   LocationPermissionStatus,
+  LocationWatchSubscription,
   UserLocation,
 } from '@/types/location';
 
@@ -59,11 +61,19 @@ function toUserFacingError(error: unknown): {
   };
 }
 
+export interface UseUserLocationOptions {
+  /** Start `watchLocation` while this hook is mounted. Map tab only. */
+  watch?: boolean;
+}
+
 /**
  * Manages foreground location permission and a one-shot current location.
- * Does not continuously watch GPS.
+ * Pass `{ watch: true }` on the Map tab to keep GPS updates while mounted.
  */
-export function useUserLocation(): UseUserLocationResult {
+export function useUserLocation(
+  options?: UseUserLocationOptions,
+): UseUserLocationResult {
+  const watch = options?.watch === true;
   const [location, setLocation] = useState<UserLocation | null>(null);
   const [status, setStatus] = useState<LocationPermissionStatus>('unknown');
   const [isLoading, setIsLoading] = useState(true);
@@ -202,14 +212,60 @@ export function useUserLocation(): UseUserLocationResult {
   }, [fetchLocation, safeSet]);
 
   useEffect(() => {
+    if (!watch || status !== 'granted') {
+      return;
+    }
+
+    let cancelled = false;
+    let subscription: LocationWatchSubscription | null = null;
+
+    void watchLocation(
+      (next) => {
+        if (cancelled) {
+          return;
+        }
+        safeSet(setLocation, next);
+        safeSet(setStatus, 'granted');
+        safeSet(setIsLoading, false);
+        safeSet(setError, null);
+        safeSet(setErrorCode, null);
+        hasLoadedOnceRef.current = true;
+      },
+      (err) => {
+        if (cancelled) {
+          return;
+        }
+        const mapped = toUserFacingError(err);
+        safeSet(setError, mapped.message);
+        safeSet(setErrorCode, mapped.code);
+      },
+    )
+      .then((nextSubscription) => {
+        if (cancelled) {
+          nextSubscription.remove();
+          return;
+        }
+        subscription = nextSubscription;
+      })
+      .catch(() => {
+        // `onError` already mapped the failure for the UI.
+      });
+
+    return () => {
+      cancelled = true;
+      subscription?.remove();
+    };
+  }, [safeSet, status, watch]);
+
+  useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
       if (nextState !== 'active') {
         return;
       }
 
       // Returning from background: refresh location only if already granted.
-      // Do not re-prompt for permission.
-      if (status === 'granted' && hasLoadedOnceRef.current) {
+      // Do not re-prompt for permission. Watching GPS already covers the Map tab.
+      if (status === 'granted' && hasLoadedOnceRef.current && !watch) {
         void fetchLocation();
       }
     };
@@ -218,7 +274,7 @@ export function useUserLocation(): UseUserLocationResult {
     return () => {
       subscription.remove();
     };
-  }, [fetchLocation, status]);
+  }, [fetchLocation, status, watch]);
 
   return {
     location,

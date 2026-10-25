@@ -275,7 +275,7 @@ record(
 );
 
 const navigationSrc = read('src/utils/synagogueNavigation.ts');
-const synagogueCardSrc = read('src/components/map/SynagogueListCard.tsx');
+const synagogueCardSrc = read('src/components/map/MapSelectedSynagogueCard.tsx');
 
 record(
   'P11.2 navigation: utility exists',

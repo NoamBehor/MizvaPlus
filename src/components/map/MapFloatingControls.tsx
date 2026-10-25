@@ -1,61 +1,41 @@
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
+import { AppIcon } from '@/components/common/AppIcon';
 import { colors } from '@/constants/colors';
 import { borderRadius, shadows } from '@/constants/theme';
+import { ltrLayoutStyle } from '@/constants/layoutDirection';
 
 interface MapFloatingControlsProps {
   onRecenter?: () => void;
-  onRefreshSynagogues?: () => void;
 }
 
-export function MapFloatingControls({
-  onRecenter,
-  onRefreshSynagogues,
-}: MapFloatingControlsProps) {
-  if (!onRecenter && !onRefreshSynagogues) {
+export function MapFloatingControls({ onRecenter }: MapFloatingControlsProps) {
+  if (!onRecenter) {
     return null;
   }
 
   return (
     <View
       pointerEvents="box-none"
-      className="absolute bottom-3 start-3 gap-2"
+      className="absolute"
+      style={[ltrLayoutStyle, { left: 16, top: 16 }]}
     >
-      {onRecenter ? (
-        <Pressable
-          onPress={onRecenter}
-          accessibilityRole="button"
-          accessibilityLabel="מרכוז על המיקום שלי"
-          className="h-11 w-11 items-center justify-center rounded-xl border"
-          style={[
-            shadows.pill,
-            {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
-              borderRadius: borderRadius.lg,
-            },
-          ]}
-        >
-          <Text style={{ fontSize: 20 }}>🎯</Text>
-        </Pressable>
-      ) : null}
-      {onRefreshSynagogues ? (
-        <Pressable
-          onPress={onRefreshSynagogues}
-          accessibilityRole="button"
-          accessibilityLabel="רענון בתי כנסת"
-          className="h-11 w-11 items-center justify-center rounded-xl"
-          style={[
-            shadows.pill,
-            {
-              backgroundColor: colors.accent,
-              borderRadius: borderRadius.lg,
-            },
-          ]}
-        >
-          <Text style={{ fontSize: 18 }}>🔄</Text>
-        </Pressable>
-      ) : null}
+      <Pressable
+        onPress={onRecenter}
+        accessibilityRole="button"
+        accessibilityLabel="מרכוז על המיקום שלי"
+        className="h-11 w-11 items-center justify-center rounded-xl border"
+        style={[
+          shadows.pill,
+          {
+            backgroundColor: colors.surface,
+            borderColor: colors.border,
+            borderRadius: borderRadius.lg,
+          },
+        ]}
+      >
+        <AppIcon name="crosshairs" size={20} color={colors.secondary} />
+      </Pressable>
     </View>
   );
 }

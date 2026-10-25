@@ -72,6 +72,7 @@
     "verify:phase11.1": "node scripts/verify-phase11.1.mjs",
     "verify:phase11.1-live": "node scripts/verify-phase11.1-live.mjs",
     "verify:phase11.2": "node scripts/verify-phase11.2.mjs",
+    "verify:map-redesign": "node scripts/verify-map-redesign.mjs",
     "verify:phase11.2.1": "node scripts/verify-synagogue-coordinate-resolver.mjs",
     "verify:diagnostics": "node scripts/verify-diagnostics.mjs",
     "verify:location": "node scripts/verify-location.mjs",
