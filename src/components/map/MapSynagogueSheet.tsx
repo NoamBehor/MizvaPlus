@@ -15,6 +15,7 @@ interface MapSynagogueSheetProps {
   location: UserLocation | null;
   selectedSynagogue: SynagogueWithMinyan | null;
   nearbySynagogues: SynagogueWithMinyan[];
+  displayedSynagogues: SynagogueWithMinyan[];
   totalCount: number;
   isSynagoguesLoading: boolean;
   synagoguesError: string | null;
@@ -54,6 +55,7 @@ export function MapSynagogueSheet({
   location,
   selectedSynagogue,
   nearbySynagogues,
+  displayedSynagogues,
   totalCount,
   isSynagoguesLoading,
   synagoguesError,
@@ -112,6 +114,16 @@ export function MapSynagogueSheet({
 
       {!isSynagoguesLoading && !synagoguesError && selectedSynagogue ? (
         <View>
+          <Text
+            style={[
+              typography.label,
+              { fontWeight: '700', color: colors.text, marginBottom: 12 },
+            ]}
+          >
+            {totalCount === 1
+              ? 'בית הכנסת הקרוב ביותר'
+              : `${totalCount} בתי הכנסת הקרובים ביותר`}
+          </Text>
           <MapSelectedSynagogueCard
             synagogue={selectedSynagogue}
             minyan={selectedSynagogue.minyan}
@@ -157,25 +169,24 @@ export function MapSynagogueSheet({
           ) : null}
 
           {nearbySynagogues.length > 0 ? (
-            <View className="mt-4 border-t pt-3" style={{ borderTopColor: colors.border }}>
-              <View className="mb-2.5 flex-row items-center justify-between">
-                <Text style={[typography.caption, { fontWeight: '700', color: colors.text }]}>
-                  בתי כנסת נוספים בסביבה
-                </Text>
-                <Text style={[typography.caption, { color: colors.secondary, fontWeight: '600' }]}>
-                  {`${totalCount}`}
-                </Text>
-              </View>
-              <View className="gap-2">
-                {nearbySynagogues.map((item) => (
-                  <SynagogueListCard
-                    key={item.id}
-                    synagogue={item}
-                    selected={item.id === selectedSynagogue.id}
-                    minyan={item.minyan}
-                    onPress={onFocusSynagogue}
-                  />
-                ))}
+            <View className="mt-5 pt-4" style={{ borderTopWidth: 1, borderTopColor: colors.border }}>
+              <View className="gap-2.5">
+                {nearbySynagogues.map((item) => {
+                  const rank = displayedSynagogues.findIndex(
+                    (synagogue) => synagogue.id === item.id,
+                  ) + 1;
+
+                  return (
+                    <SynagogueListCard
+                      key={item.id}
+                      synagogue={item}
+                      rank={rank > 0 ? rank : undefined}
+                      selected={item.id === selectedSynagogue.id}
+                      minyan={item.minyan}
+                      onPress={onFocusSynagogue}
+                    />
+                  );
+                })}
               </View>
             </View>
           ) : null}

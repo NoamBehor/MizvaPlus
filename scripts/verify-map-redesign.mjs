@@ -155,11 +155,11 @@ record(
   mapScreenSrc.includes('resolveSelectedSynagogueId'),
 );
 record(
-  'layout: page-scroll map with fixed height',
-  mapScreenSrc.includes('MAP_PAGE_HEIGHT') &&
-    mapScreenSrc.includes('ScrollView') &&
-    mapScreenSrc.includes('height: MAP_PAGE_HEIGHT') &&
-    !mapScreenSrc.includes("position: 'absolute', top: 0, right: 0, bottom: 0, left: 0"),
+  'layout: collapsing map stays visible',
+  mapScreenSrc.includes('useCollapsingMapHeight') &&
+    mapScreenSrc.includes('Animated.ScrollView') &&
+    read('src/hooks/useCollapsingMapHeight.ts').includes('MAP_COLLAPSED_HEIGHT') &&
+    read('src/hooks/useCollapsingMapHeight.ts').includes('overflow: \'hidden\''),
 );
 record(
   'layout: synagogue list below map',
@@ -167,6 +167,12 @@ record(
     !mapScreenSrc.includes('MapFloatingControls') &&
     !headerSrc.includes('onRefreshLocation') &&
     !headerSrc.includes('onRefreshSynagogues'),
+);
+record(
+  'layout: list and pins capped at 5 nearest',
+  read('src/utils/mapSynagogues.ts').includes('MAP_NEAREST_LIMIT = 5') &&
+    mapScreenSrc.includes('takeNearestSynagogues') &&
+    mapScreenSrc.includes('displayedSynagogues'),
 );
 record(
   'layout: map tab watches GPS',

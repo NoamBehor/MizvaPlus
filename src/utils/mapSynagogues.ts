@@ -8,6 +8,22 @@ import { isValidWgs84Coordinate } from '@/utils/coordinates';
 
 export type MapSynagogueFilter = 'all' | 'activeMinyan';
 
+/** How many nearby synagogues the map list and pins may show. */
+export const MAP_NEAREST_LIMIT = 5;
+
+export function takeNearestSynagogues<T extends { distanceMeters?: number }>(
+  synagogues: T[],
+  limit = MAP_NEAREST_LIMIT,
+): T[] {
+  return [...synagogues]
+    .sort(
+      (left, right) =>
+        (left.distanceMeters ?? Number.POSITIVE_INFINITY) -
+        (right.distanceMeters ?? Number.POSITIVE_INFINITY),
+    )
+    .slice(0, limit);
+}
+
 /** Synagogues safe to render as map markers. */
 export function filterSynagoguesForMap<T extends Synagogue | SynagogueWithMinyan>(
   synagogues: T[],

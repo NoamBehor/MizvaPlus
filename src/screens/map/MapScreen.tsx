@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Dimensions,
-  Platform,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { Platform, Text, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
+import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
 
@@ -24,6 +19,7 @@ import {
   SYNAGOGUE_FOCUS_LONGITUDE_DELTA,
 } from '@/constants/synagogues';
 import { typography } from '@/constants/theme';
+import { useCollapsingMapHeight } from '@/hooks/useCollapsingMapHeight';
 import { useMinyanLive } from '@/hooks/useMinyanLive';
 import { useScrollBottomInset } from '@/hooks/useScrollBottomInset';
 import { useSynagogues } from '@/hooks/useSynagogues';
@@ -39,12 +35,12 @@ import type { Synagogue } from '@/types/synagogue';
 import {
   filterSynagoguesByMapFilter,
   filterSynagoguesForMap,
+  MAP_NEAREST_LIMIT,
   resolveMarkerPinColor,
   resolveSelectedSynagogueId,
+  takeNearestSynagogues,
   type MapSynagogueFilter,
 } from '@/utils/mapSynagogues';
-
-const MAP_PAGE_HEIGHT = Math.round(Dimensions.get('window').height * 0.45);
 
 export function MapScreen() {
   const mapRef = useRef<MapView | null>(null);
@@ -58,6 +54,8 @@ export function MapScreen() {
   const [mapTilesTimedOut, setMapTilesTimedOut] = useState(false);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const { scrollPaddingBottom } = useScrollBottomInset();
+  const { expandedHeight, onScroll, mapWrapperStyle, legendStyle } =
+    useCollapsingMapHeight();
 
   const {
     location,
@@ -156,17 +154,41 @@ export function MapScreen() {
     );
   }, [synagogues]);
 
+  const displayedSynagogues = useMemo(
+    () =>
+      takeNearestSynagogues(
+        filterSynagoguesByMapFilter(synagoguesWithMinyan, synagogueFilter),
+        MAP_NEAREST_LIMIT,
+      ),
+    [synagogueFilter, synagoguesWithMinyan],
+  );
+
+  const displayedAllCount = useMemo(
+    () =>
+      takeNearestSynagogues(synagoguesWithMinyan, MAP_NEAREST_LIMIT).length,
+    [synagoguesWithMinyan],
+  );
+
+  const displayedMinyanCount = useMemo(
+    () =>
+      takeNearestSynagogues(
+        filterSynagoguesByMapFilter(synagoguesWithMinyan, 'activeMinyan'),
+        MAP_NEAREST_LIMIT,
+      ).length,
+    [synagoguesWithMinyan],
+  );
+
   useEffect(() => {
     setSelectedSynagogueId((currentId) =>
-      resolveSelectedSynagogueId(synagoguesWithMinyan, currentId),
+      resolveSelectedSynagogueId(displayedSynagogues, currentId),
     );
-  }, [synagoguesWithMinyan]);
+  }, [displayedSynagogues]);
 
   const selectedSynagogue = useMemo(
     () =>
-      synagoguesWithMinyan.find((item) => item.id === selectedSynagogueId) ??
+      displayedSynagogues.find((item) => item.id === selectedSynagogueId) ??
       null,
-    [selectedSynagogueId, synagoguesWithMinyan],
+    [displayedSynagogues, selectedSynagogueId],
   );
 
   useEffect(() => {
@@ -188,20 +210,10 @@ export function MapScreen() {
       .setActiveReportOsmKey(selectedSynagogue.minyan?.synagogueOsmKey ?? null);
   }, [selectedSynagogue]);
 
-  const filteredSynagogues = useMemo(
-    () => filterSynagoguesByMapFilter(synagoguesWithMinyan, synagogueFilter),
-    [synagogueFilter, synagoguesWithMinyan],
-  );
-
   const nearbySynagogues = useMemo(
     () =>
-      filteredSynagogues.filter((item) => item.id !== selectedSynagogueId),
-    [filteredSynagogues, selectedSynagogueId],
-  );
-
-  const activeMinyanCount = useMemo(
-    () => synagoguesWithMinyan.filter((item) => Boolean(item.minyan)).length,
-    [synagoguesWithMinyan],
+      displayedSynagogues.filter((item) => item.id !== selectedSynagogueId),
+    [displayedSynagogues, selectedSynagogueId],
   );
 
   const focusSynagogue = useCallback((synagogue: Synagogue) => {
@@ -289,8 +301,8 @@ export function MapScreen() {
   }, [androidMapsKeyMissing, showMap]);
 
   const mapSynagogues = useMemo(
-    () => filterSynagoguesForMap(synagoguesWithMinyan),
-    [synagoguesWithMinyan],
+    () => filterSynagoguesForMap(displayedSynagogues),
+    [displayedSynagogues],
   );
 
   const headerLocationTone = useMemo(() => {
@@ -328,10 +340,8 @@ export function MapScreen() {
       <MapScreenHeader
         locationLabel={headerLocationLabel}
         locationTone={headerLocationTone}
-        synagogueCount={
-          !isSynagoguesLoading && synagogues.length > 0 ? synagogues.length : 0
-        }
-        activeMinyanCount={activeMinyanCount}
+        synagogueCount={!isSynagoguesLoading ? displayedAllCount : 0}
+        activeMinyanCount={displayedMinyanCount}
         filter={synagogueFilter}
         onFilterChange={setSynagogueFilter}
       />
@@ -387,111 +397,122 @@ export function MapScreen() {
       ) : null}
 
       {showMap && initialRegion ? (
-        <ScrollView
-          className="flex-1"
-          keyboardShouldPersistTaps="handled"
-          nestedScrollEnabled
-          contentContainerStyle={{ paddingBottom: scrollPaddingBottom }}
-        >
-          <View
-            collapsable={false}
-            style={{ height: MAP_PAGE_HEIGHT, width: '100%' }}
-          >
-            {androidMapsKeyMissing ? (
-              <MapStatePanel
-                title="לא ניתן להציג את המפה"
-                description="מפת Google לא הוגדרה בגרסה זו. חיפוש בתי הכנסת לפי המיקום עדיין זמין למטה."
-              />
-            ) : (
-              <MapView
-                ref={mapRef}
-                style={{ width: '100%', height: MAP_PAGE_HEIGHT }}
-                provider={
-                  Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined
-                }
-                initialRegion={initialRegion}
-                showsUserLocation
-                showsMyLocationButton={false}
-                toolbarEnabled={false}
-                rotateEnabled={false}
-                pitchEnabled={false}
-                onMapLoaded={() => {
-                  setMapTilesLoaded(true);
-                  setMapTilesTimedOut(false);
-                  if (__DEV__) {
-                    logDiagnosticEvent('MAP', 'map_tiles_loaded', 'info', {
-                      platform: Platform.OS,
-                    });
+        <View className="flex-1">
+          <Animated.View style={mapWrapperStyle}>
+            <View
+              collapsable={false}
+              style={{ height: expandedHeight, width: '100%' }}
+            >
+              {androidMapsKeyMissing ? (
+                <MapStatePanel
+                  title="לא ניתן להציג את המפה"
+                  description="מפת Google לא הוגדרה בגרסה זו. חיפוש בתי הכנסת לפי המיקום עדיין זמין למטה."
+                />
+              ) : (
+                <MapView
+                  ref={mapRef}
+                  style={{ width: '100%', height: expandedHeight }}
+                  provider={
+                    Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined
                   }
-                }}
-              >
-                {mapSynagogues.map((synagogue) => (
-                  <Marker
-                    key={synagogue.id}
-                    identifier={synagogue.id}
-                    coordinate={synagogue.coordinates}
-                    title={synagogue.name}
-                    description={
-                      synagogue.minyan
-                        ? `מניין נדרש · חסרים ${synagogue.minyan.missingCount}`
-                        : synagogue.address
+                  initialRegion={initialRegion}
+                  showsUserLocation
+                  showsMyLocationButton={false}
+                  toolbarEnabled={false}
+                  rotateEnabled={false}
+                  pitchEnabled={false}
+                  onMapLoaded={() => {
+                    setMapTilesLoaded(true);
+                    setMapTilesTimedOut(false);
+                    if (__DEV__) {
+                      logDiagnosticEvent('MAP', 'map_tiles_loaded', 'info', {
+                        platform: Platform.OS,
+                      });
                     }
-                    pinColor={resolveMarkerPinColor(
-                      synagogue,
-                      selectedSynagogueId,
-                    )}
-                    onPress={() => handleMarkerPress(synagogue)}
-                  />
-                ))}
-              </MapView>
-            )}
-            {!androidMapsKeyMissing && mapTilesTimedOut && !mapTilesLoaded ? (
+                  }}
+                >
+                  {mapSynagogues.map((synagogue) => (
+                    <Marker
+                      key={synagogue.id}
+                      identifier={synagogue.id}
+                      coordinate={synagogue.coordinates}
+                      title={synagogue.name}
+                      description={
+                        synagogue.minyan
+                          ? `מניין נדרש · חסרים ${synagogue.minyan.missingCount}`
+                          : synagogue.address
+                      }
+                      pinColor={resolveMarkerPinColor(
+                        synagogue,
+                        selectedSynagogueId,
+                      )}
+                      onPress={() => handleMarkerPress(synagogue)}
+                    />
+                  ))}
+                </MapView>
+              )}
+              {!androidMapsKeyMissing && mapTilesTimedOut && !mapTilesLoaded ? (
+                <View
+                  pointerEvents="none"
+                  className="absolute rounded-xl px-3 py-2"
+                  style={{
+                    top: 12,
+                    left: 24,
+                    right: 24,
+                    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                  }}
+                >
+                  <Text
+                    style={[
+                      typography.caption,
+                      { color: colors.muted, textAlign: 'center' },
+                    ]}
+                  >
+                    לא הצלחנו לטעון את אריחי Google Maps. חיפוש בתי הכנסת ברשימה למטה אינו תלוי באריחים.
+                  </Text>
+                </View>
+              ) : null}
+              <Animated.View
+                pointerEvents="none"
+                style={[{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 }, legendStyle]}
+              >
+                <MapMarkerLegend />
+              </Animated.View>
               <View
                 pointerEvents="none"
-                className="absolute rounded-xl px-3 py-2"
-                style={{
-                  top: 12,
-                  left: 24,
-                  right: 24,
-                  backgroundColor: 'rgba(255, 255, 255, 0.92)',
-                }}
+                className="absolute rounded px-2 py-1"
+                style={{ left: 16, top: 12, backgroundColor: 'rgba(255, 255, 255, 0.88)' }}
               >
                 <Text
                   style={[
                     typography.caption,
-                    { color: colors.muted, textAlign: 'center' },
+                    {
+                      color: colors.muted,
+                      fontSize: 10,
+                      writingDirection: 'ltr',
+                    },
                   ]}
                 >
-                  לא הצלחנו לטעון את אריחי Google Maps. חיפוש בתי הכנסת ברשימה למטה אינו תלוי באריחים.
+                  © OpenStreetMap contributors
                 </Text>
               </View>
-            ) : null}
-            <MapMarkerLegend />
-            <View
-              pointerEvents="none"
-              className="absolute rounded px-2 py-1"
-              style={{ left: 16, top: 12, backgroundColor: 'rgba(255, 255, 255, 0.88)' }}
-            >
-              <Text
-                style={[
-                  typography.caption,
-                  {
-                    color: colors.muted,
-                    fontSize: 10,
-                    writingDirection: 'ltr',
-                  },
-                ]}
-              >
-                © OpenStreetMap contributors
-              </Text>
             </View>
-          </View>
+          </Animated.View>
 
+          <Animated.ScrollView
+            className="flex-1"
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            onScroll={onScroll}
+            scrollEventThrottle={16}
+            contentContainerStyle={{ paddingBottom: scrollPaddingBottom }}
+          >
           <MapSynagogueSheet
             location={location}
             selectedSynagogue={selectedSynagogue}
             nearbySynagogues={nearbySynagogues}
-            totalCount={filteredSynagogues.length}
+            displayedSynagogues={displayedSynagogues}
+            totalCount={displayedSynagogues.length}
             isSynagoguesLoading={isSynagoguesLoading}
             synagoguesError={synagoguesError}
             isEmpty={isEmpty}
@@ -529,7 +550,8 @@ export function MapScreen() {
             onClearMinyanMutationError={clearMutationError}
             onClearMinyanSuccessMessage={clearSuccessMessage}
           />
-        </ScrollView>
+          </Animated.ScrollView>
+        </View>
       ) : null}
     </SafeAreaView>
   );
