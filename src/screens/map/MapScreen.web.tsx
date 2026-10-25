@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, View } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,6 +20,7 @@ import {
   getDevLocationOverrideSelection,
   subscribeDevLocationOverride,
 } from '@/services/devPreview/devLocationOverride';
+import { getLockedSearchCoordinates } from '@/services/map/synagogueSearchSession';
 import {
   formatLocationPermissionForDiagnostics,
   getLocationAgeSeconds,
@@ -29,26 +30,29 @@ import { useDiagnosticsStore } from '@/store/diagnosticsStore';
 import type { Synagogue } from '@/types/synagogue';
 import type { SynagogueWithMinyan } from '@/services/minyanLive/minyanLiveTypes';
 import {
-  filterSynagoguesByMapFilter,
   filterSynagoguesForMap,
-  MAP_NEAREST_LIMIT,
+  resolveDisplayedSynagogues,
   resolveSelectedSynagogueId,
-  takeNearestSynagogues,
+  synagogueNeedsMinyan,
+  takeMapDisplaySynagogues,
   type MapSynagogueFilter,
 } from '@/utils/mapSynagogues';
 
 export function MapScreen() {
+  const scrollViewRef = useRef<ScrollView>(null);
   const [selectedSynagogueId, setSelectedSynagogueId] = useState<string | null>(
     null,
   );
   const [focusSynagogueId, setFocusSynagogueId] = useState<string | null>(null);
-  const [userDidFocusPin, setUserDidFocusPin] = useState(false);
+  const [recenterNonce, setRecenterNonce] = useState(0);
   const [synagogueFilter, setSynagogueFilter] =
     useState<MapSynagogueFilter>('all');
   const [devOverrideRevision, setDevOverrideRevision] = useState(0);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const { scrollPaddingBottom } = useScrollBottomInset();
-  const { expandedHeight, onScroll, mapWrapperStyle } = useCollapsingMapHeight();
+  const { expandedHeight, onScroll, expandMap, mapWrapperStyle } =
+    useCollapsingMapHeight();
 
   const {
     location,
@@ -107,6 +111,7 @@ export function MapScreen() {
       return;
     }
 
+    const searchCenter = getLockedSearchCoordinates() ?? coordinates;
     useDiagnosticsStore.getState().setMapDiagnostics({
       locationSource: location?.source ?? null,
       permission: formatLocationPermissionForDiagnostics(status),
@@ -115,8 +120,8 @@ export function MapScreen() {
       accuracyMeters: location?.accuracy ?? null,
       ageSeconds: location ? getLocationAgeSeconds(location) : null,
       fallbackReason: location?.fallbackReason ?? null,
-      overpassCenterLatitude: coordinates?.latitude ?? null,
-      overpassCenterLongitude: coordinates?.longitude ?? null,
+      overpassCenterLatitude: searchCenter?.latitude ?? null,
+      overpassCenterLongitude: searchCenter?.longitude ?? null,
       overpassCenterSource: location?.source ?? null,
       mapRenderer: 'WEB_GOOGLE_MAPS',
     });
@@ -154,25 +159,19 @@ export function MapScreen() {
   }, [synagogues]);
 
   const displayedSynagogues = useMemo(
-    () =>
-      takeNearestSynagogues(
-        filterSynagoguesByMapFilter(synagoguesWithMinyan, synagogueFilter),
-        MAP_NEAREST_LIMIT,
-      ),
+    () => resolveDisplayedSynagogues(synagoguesWithMinyan, synagogueFilter),
     [synagogueFilter, synagoguesWithMinyan],
   );
 
   const displayedAllCount = useMemo(
-    () =>
-      takeNearestSynagogues(synagoguesWithMinyan, MAP_NEAREST_LIMIT).length,
+    () => takeMapDisplaySynagogues(synagoguesWithMinyan).length,
     [synagoguesWithMinyan],
   );
 
   const displayedMinyanCount = useMemo(
     () =>
-      takeNearestSynagogues(
-        filterSynagoguesByMapFilter(synagoguesWithMinyan, 'activeMinyan'),
-        MAP_NEAREST_LIMIT,
+      synagoguesWithMinyan.filter((synagogue) =>
+        synagogueNeedsMinyan(synagogue.minyan),
       ).length,
     [synagoguesWithMinyan],
   );
@@ -216,21 +215,40 @@ export function MapScreen() {
   );
 
   const handleMarkerPress = useCallback((synagogue: SynagogueWithMinyan) => {
-    setUserDidFocusPin(true);
     setSelectedSynagogueId(synagogue.id);
     setFocusSynagogueId(synagogue.id);
-  }, []);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    expandMap();
+  }, [expandMap]);
 
   const focusSynagogue = useCallback((synagogue: Synagogue) => {
-    setUserDidFocusPin(true);
     setSelectedSynagogueId(synagogue.id);
     setFocusSynagogueId(synagogue.id);
-  }, []);
+    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    expandMap();
+  }, [expandMap]);
 
-  const handleRetryAll = useCallback(() => {
-    void refreshLocation();
-    void refreshSynagogues();
-  }, [refreshLocation, refreshSynagogues]);
+  const handleRetryAll = useCallback(async () => {
+    const nextLocation = await refreshLocation();
+    const nextCoordinates = nextLocation?.coordinates ?? coordinates;
+    if (nextCoordinates) {
+      await refreshSynagogues(nextCoordinates);
+      setRecenterNonce((current) => current + 1);
+    }
+  }, [coordinates, refreshLocation, refreshSynagogues]);
+
+  const handleManualRefresh = useCallback(async () => {
+    if (isManualRefreshing) {
+      return;
+    }
+
+    setIsManualRefreshing(true);
+    try {
+      await handleRetryAll();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  }, [handleRetryAll, isManualRefreshing]);
 
   const showPermissionPrompt =
     !isLocationLoading &&
@@ -290,6 +308,10 @@ export function MapScreen() {
         activeMinyanCount={displayedMinyanCount}
         filter={synagogueFilter}
         onFilterChange={setSynagogueFilter}
+        onRefreshLocation={() => {
+          void handleManualRefresh();
+        }}
+        isRefreshing={isManualRefreshing || isSynagoguesLoading}
       />
 
       {showPermissionPrompt ? (
@@ -343,12 +365,14 @@ export function MapScreen() {
                 devOverride={devOverrideSelection}
                 isFallbackLocation={isFallbackLocation}
                 fillContainer
-                followUser={!userDidFocusPin}
+                followUser={false}
+                recenterNonce={recenterNonce}
                 onMarkerPress={handleMarkerPress}
               />
             </View>
           </Animated.View>
           <Animated.ScrollView
+            ref={scrollViewRef}
             className="flex-1"
             keyboardShouldPersistTaps="handled"
             onScroll={onScroll}
@@ -376,9 +400,11 @@ export function MapScreen() {
             minyanSuccessMessage={minyanSuccessMessage}
             isOwnedReport={isOwnedReport}
             onRetrySynagogues={() => {
-              void refreshSynagogues();
+              void refreshSynagogues(coordinates ?? undefined);
             }}
-            onRetryAll={handleRetryAll}
+            onRetryAll={() => {
+              void handleRetryAll();
+            }}
             onFocusSynagogue={focusSynagogue}
             onCreateMinyan={(attendance) =>
               selectedSynagogue

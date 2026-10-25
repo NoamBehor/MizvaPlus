@@ -37,6 +37,9 @@ const GLYPHS = {
   crosshairs: 'crosshairs-gps',
   refresh: 'refresh',
   navigate: 'navigation-variant',
+  plus: 'plus',
+  magnify: 'magnify',
+  close: 'close',
 } as const satisfies Record<string, GlyphName>;
 
 export type AppIconName = keyof typeof GLYPHS;

@@ -22,7 +22,7 @@ export interface UseUserLocationResult {
   error: string | null;
   errorCode: LocationServiceError['code'] | null;
   requestPermission: () => Promise<void>;
-  refreshLocation: () => Promise<void>;
+  refreshLocation: () => Promise<UserLocation | null>;
 }
 
 function toUserFacingError(error: unknown): {
@@ -90,7 +90,7 @@ export function useUserLocation(
     }
   }, []);
 
-  const fetchLocation = useCallback(async () => {
+  const fetchLocation = useCallback(async (): Promise<UserLocation | null> => {
     safeSet(setIsLoading, true);
     safeSet(setError, null);
     safeSet(setErrorCode, null);
@@ -105,6 +105,7 @@ export function useUserLocation(
       safeSet(setLocation, current);
       safeSet(setStatus, 'granted');
       hasLoadedOnceRef.current = true;
+      return current;
     } catch (err) {
       const mapped = toUserFacingError(err);
       safeSet(setError, mapped.message);
@@ -117,6 +118,7 @@ export function useUserLocation(
           safeSet(setLocation, null);
         }
       }
+      return null;
     } finally {
       safeSet(setIsLoading, false);
     }
@@ -161,13 +163,13 @@ export function useUserLocation(
     }
   }, [fetchLocation, safeSet]);
 
-  const refreshLocation = useCallback(async () => {
+  const refreshLocation = useCallback(async (): Promise<UserLocation | null> => {
     if (status !== 'granted') {
       await requestPermission();
-      return;
+      return null;
     }
 
-    await fetchLocation();
+    return fetchLocation();
   }, [fetchLocation, requestPermission, status]);
 
   useEffect(() => {

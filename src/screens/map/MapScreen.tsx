@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Text, View } from 'react-native';
+import { Platform, ScrollView, Text, View } from 'react-native';
 import MapView, { Marker, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import Animated from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,7 @@ import { useScrollBottomInset } from '@/hooks/useScrollBottomInset';
 import { useSynagogues } from '@/hooks/useSynagogues';
 import { useUserLocation } from '@/hooks/useUserLocation';
 import { logDiagnosticEvent } from '@/services/diagnostics/diagnosticLogger';
+import { getLockedSearchCoordinates } from '@/services/map/synagogueSearchSession';
 import {
   formatLocationPermissionForDiagnostics,
   getLocationAgeSeconds,
@@ -33,18 +34,18 @@ import { useAppStore } from '@/store/appStore';
 import { useDiagnosticsStore } from '@/store/diagnosticsStore';
 import type { Synagogue } from '@/types/synagogue';
 import {
-  filterSynagoguesByMapFilter,
   filterSynagoguesForMap,
-  MAP_NEAREST_LIMIT,
+  resolveDisplayedSynagogues,
   resolveMarkerPinColor,
   resolveSelectedSynagogueId,
-  takeNearestSynagogues,
+  synagogueNeedsMinyan,
+  takeMapDisplaySynagogues,
   type MapSynagogueFilter,
 } from '@/utils/mapSynagogues';
 
 export function MapScreen() {
   const mapRef = useRef<MapView | null>(null);
-  const userDidFocusPinRef = useRef(false);
+  const scrollViewRef = useRef<ScrollView>(null);
   const [selectedSynagogueId, setSelectedSynagogueId] = useState<string | null>(
     null,
   );
@@ -52,9 +53,10 @@ export function MapScreen() {
     useState<MapSynagogueFilter>('all');
   const [mapTilesLoaded, setMapTilesLoaded] = useState(false);
   const [mapTilesTimedOut, setMapTilesTimedOut] = useState(false);
+  const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const { scrollPaddingBottom } = useScrollBottomInset();
-  const { expandedHeight, onScroll, mapWrapperStyle, legendStyle } =
+  const { expandedHeight, onScroll, expandMap, mapWrapperStyle, legendStyle } =
     useCollapsingMapHeight();
 
   const {
@@ -95,6 +97,7 @@ export function MapScreen() {
       return;
     }
 
+    const searchCenter = getLockedSearchCoordinates() ?? coordinates;
     useDiagnosticsStore.getState().setMapDiagnostics({
       locationSource: location?.source ?? null,
       permission: formatLocationPermissionForDiagnostics(status),
@@ -103,8 +106,8 @@ export function MapScreen() {
       accuracyMeters: location?.accuracy ?? null,
       ageSeconds: location ? getLocationAgeSeconds(location) : null,
       fallbackReason: location?.fallbackReason ?? null,
-      overpassCenterLatitude: coordinates?.latitude ?? null,
-      overpassCenterLongitude: coordinates?.longitude ?? null,
+      overpassCenterLatitude: searchCenter?.latitude ?? null,
+      overpassCenterLongitude: searchCenter?.longitude ?? null,
       overpassCenterSource: location?.source ?? null,
       mapRenderer: 'NATIVE_REACT_NATIVE_MAPS',
     });
@@ -155,25 +158,19 @@ export function MapScreen() {
   }, [synagogues]);
 
   const displayedSynagogues = useMemo(
-    () =>
-      takeNearestSynagogues(
-        filterSynagoguesByMapFilter(synagoguesWithMinyan, synagogueFilter),
-        MAP_NEAREST_LIMIT,
-      ),
+    () => resolveDisplayedSynagogues(synagoguesWithMinyan, synagogueFilter),
     [synagogueFilter, synagoguesWithMinyan],
   );
 
   const displayedAllCount = useMemo(
-    () =>
-      takeNearestSynagogues(synagoguesWithMinyan, MAP_NEAREST_LIMIT).length,
+    () => takeMapDisplaySynagogues(synagoguesWithMinyan).length,
     [synagoguesWithMinyan],
   );
 
   const displayedMinyanCount = useMemo(
     () =>
-      takeNearestSynagogues(
-        filterSynagoguesByMapFilter(synagoguesWithMinyan, 'activeMinyan'),
-        MAP_NEAREST_LIMIT,
+      synagoguesWithMinyan.filter((synagogue) =>
+        synagogueNeedsMinyan(synagogue.minyan),
       ).length,
     [synagoguesWithMinyan],
   );
@@ -216,44 +213,64 @@ export function MapScreen() {
     [displayedSynagogues, selectedSynagogueId],
   );
 
-  const focusSynagogue = useCallback((synagogue: Synagogue) => {
-    userDidFocusPinRef.current = true;
-    setSelectedSynagogueId(synagogue.id);
-    mapRef.current?.animateToRegion(
-      {
-        latitude: synagogue.coordinates.latitude,
-        longitude: synagogue.coordinates.longitude,
-        latitudeDelta: SYNAGOGUE_FOCUS_LATITUDE_DELTA,
-        longitudeDelta: SYNAGOGUE_FOCUS_LONGITUDE_DELTA,
-      },
-      350,
-    );
-  }, []);
+  const recenterOnUser = useCallback(
+    (nextCoordinates: { latitude: number; longitude: number }) => {
+      mapRef.current?.animateToRegion(
+        {
+          latitude: nextCoordinates.latitude,
+          longitude: nextCoordinates.longitude,
+          latitudeDelta: MAP_INITIAL_LATITUDE_DELTA,
+          longitudeDelta: MAP_INITIAL_LONGITUDE_DELTA,
+        },
+        350,
+      );
+    },
+    [],
+  );
+
+  const focusSynagogue = useCallback(
+    (synagogue: Synagogue) => {
+      setSelectedSynagogueId(synagogue.id);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      expandMap();
+      mapRef.current?.animateToRegion(
+        {
+          latitude: synagogue.coordinates.latitude,
+          longitude: synagogue.coordinates.longitude,
+          latitudeDelta: SYNAGOGUE_FOCUS_LATITUDE_DELTA,
+          longitudeDelta: SYNAGOGUE_FOCUS_LONGITUDE_DELTA,
+        },
+        350,
+      );
+    },
+    [expandMap],
+  );
 
   const handleMarkerPress = useCallback((synagogue: Synagogue) => {
     focusSynagogue(synagogue);
   }, [focusSynagogue]);
 
-  const handleRetryAll = useCallback(() => {
-    void refreshLocation();
-    void refreshSynagogues();
-  }, [refreshLocation, refreshSynagogues]);
+  const handleRetryAll = useCallback(async () => {
+    const nextLocation = await refreshLocation();
+    const nextCoordinates = nextLocation?.coordinates ?? coordinates;
+    if (nextCoordinates) {
+      await refreshSynagogues(nextCoordinates);
+      recenterOnUser(nextCoordinates);
+    }
+  }, [coordinates, recenterOnUser, refreshLocation, refreshSynagogues]);
 
-  useEffect(() => {
-    if (!coordinates || userDidFocusPinRef.current) {
+  const handleManualRefresh = useCallback(async () => {
+    if (isManualRefreshing) {
       return;
     }
 
-    mapRef.current?.animateToRegion(
-      {
-        latitude: coordinates.latitude,
-        longitude: coordinates.longitude,
-        latitudeDelta: MAP_INITIAL_LATITUDE_DELTA,
-        longitudeDelta: MAP_INITIAL_LONGITUDE_DELTA,
-      },
-      350,
-    );
-  }, [coordinates]);
+    setIsManualRefreshing(true);
+    try {
+      await handleRetryAll();
+    } finally {
+      setIsManualRefreshing(false);
+    }
+  }, [handleRetryAll, isManualRefreshing]);
 
   const showPermissionPrompt =
     !isLocationLoading &&
@@ -344,6 +361,10 @@ export function MapScreen() {
         activeMinyanCount={displayedMinyanCount}
         filter={synagogueFilter}
         onFilterChange={setSynagogueFilter}
+        onRefreshLocation={() => {
+          void handleManualRefresh();
+        }}
+        isRefreshing={isManualRefreshing || isSynagoguesLoading}
       />
 
       {showServicesDisabled ? (
@@ -500,6 +521,7 @@ export function MapScreen() {
           </Animated.View>
 
           <Animated.ScrollView
+            ref={scrollViewRef}
             className="flex-1"
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
@@ -528,9 +550,11 @@ export function MapScreen() {
             minyanSuccessMessage={minyanSuccessMessage}
             isOwnedReport={isOwnedReport}
             onRetrySynagogues={() => {
-              void refreshSynagogues();
+              void refreshSynagogues(coordinates ?? undefined);
             }}
-            onRetryAll={handleRetryAll}
+            onRetryAll={() => {
+              void handleRetryAll();
+            }}
             onFocusSynagogue={focusSynagogue}
             onCreateMinyan={(attendance) =>
               selectedSynagogue

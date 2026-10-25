@@ -176,9 +176,12 @@ export function GoogleMapsWebView({
       return;
     }
 
-    map.panTo({ lat: center.latitude, lng: center.longitude });
+    map.panTo({
+      lat: centerRef.current.latitude,
+      lng: centerRef.current.longitude,
+    });
     map.setZoom(latitudeDeltaToZoom(MAP_INITIAL_LATITUDE_DELTA));
-  }, [center.latitude, center.longitude, loadState, recenterNonce]);
+  }, [loadState, recenterNonce]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -233,45 +236,60 @@ export function GoogleMapsWebView({
       !showDevMarker &&
       (locationSource === 'GPS' || locationSource === 'CACHED');
 
-    devMarkerRef.current?.setMap(null);
-    devMarkerRef.current = null;
-    userMarkerRef.current?.setMap(null);
-    userMarkerRef.current = null;
+    if (!showDevMarker) {
+      devMarkerRef.current?.setMap(null);
+      devMarkerRef.current = null;
+    }
+
+    if (!showUserMarker) {
+      userMarkerRef.current?.setMap(null);
+      userMarkerRef.current = null;
+    }
 
     if (showDevMarker && devOverride) {
-      devMarkerRef.current = new google.maps.Marker({
-        map,
-        position: { lat: devOverride.latitude, lng: devOverride.longitude },
-        title: `מיקום פיתוח — ${devOverride.name}`,
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 9,
-          fillColor: colors.accent,
-          fillOpacity: 1,
-          strokeColor: colors.white,
-          strokeWeight: 2,
-        },
-        zIndex: 5,
-      });
-      map.setCenter({ lat: devOverride.latitude, lng: devOverride.longitude });
+      const position = { lat: devOverride.latitude, lng: devOverride.longitude };
+      if (devMarkerRef.current) {
+        devMarkerRef.current.setPosition(position);
+      } else {
+        devMarkerRef.current = new google.maps.Marker({
+          map,
+          position,
+          title: `מיקום פיתוח — ${devOverride.name}`,
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 9,
+            fillColor: colors.accent,
+            fillOpacity: 1,
+            strokeColor: colors.white,
+            strokeWeight: 2,
+          },
+          zIndex: 5,
+        });
+      }
+      map.setCenter(position);
       return;
     }
 
     if (showUserMarker) {
-      userMarkerRef.current = new google.maps.Marker({
-        map,
-        position: { lat: center.latitude, lng: center.longitude },
-        title: 'המיקום שלך',
-        icon: {
-          path: google.maps.SymbolPath.CIRCLE,
-          scale: 7,
-          fillColor: '#2563EB',
-          fillOpacity: 1,
-          strokeColor: colors.white,
-          strokeWeight: 2,
-        },
-        zIndex: 4,
-      });
+      const position = { lat: center.latitude, lng: center.longitude };
+      if (userMarkerRef.current) {
+        userMarkerRef.current.setPosition(position);
+      } else {
+        userMarkerRef.current = new google.maps.Marker({
+          map,
+          position,
+          title: 'המיקום שלך',
+          icon: {
+            path: google.maps.SymbolPath.CIRCLE,
+            scale: 7,
+            fillColor: '#2563EB',
+            fillOpacity: 1,
+            strokeColor: colors.white,
+            strokeWeight: 2,
+          },
+          zIndex: 4,
+        });
+      }
     }
   }, [
     center.latitude,

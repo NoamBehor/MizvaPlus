@@ -49,6 +49,39 @@ async function readBrowserPermissionState(): Promise<LocationPermissionStatus> {
   }
 }
 
+function toUserLocationFromPosition(position: GeolocationPosition): UserLocation {
+  return {
+    coordinates: {
+      latitude: position.coords.latitude,
+      longitude: position.coords.longitude,
+    },
+    accuracy:
+      typeof position.coords.accuracy === 'number'
+        ? position.coords.accuracy
+        : undefined,
+    timestamp: position.timestamp,
+    source: 'GPS',
+  };
+}
+
+function mapGeolocationError(error: GeolocationPositionError): LocationServiceError {
+  if (error.code === error.PERMISSION_DENIED) {
+    return new LocationServiceError(
+      'permission_denied',
+      'Location permission was denied.',
+    );
+  }
+
+  if (error.code === error.TIMEOUT) {
+    return new LocationServiceError('timeout', 'Location request timed out.');
+  }
+
+  return new LocationServiceError(
+    'location_unavailable',
+    'Current location is unavailable.',
+  );
+}
+
 function readBrowserGeolocation(): Promise<UserLocation> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -63,41 +96,10 @@ function readBrowserGeolocation(): Promise<UserLocation> {
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        resolve({
-          coordinates: {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          },
-          accuracy:
-            typeof position.coords.accuracy === 'number'
-              ? position.coords.accuracy
-              : undefined,
-          timestamp: position.timestamp,
-          source: 'GPS',
-        });
+        resolve(toUserLocationFromPosition(position));
       },
       (error) => {
-        if (error.code === error.PERMISSION_DENIED) {
-          reject(
-            new LocationServiceError(
-              'permission_denied',
-              'Location permission was denied.',
-            ),
-          );
-          return;
-        }
-
-        if (error.code === error.TIMEOUT) {
-          reject(new LocationServiceError('timeout', 'Location request timed out.'));
-          return;
-        }
-
-        reject(
-          new LocationServiceError(
-            'location_unavailable',
-            'Current location is unavailable.',
-          ),
-        );
+        reject(mapGeolocationError(error));
       },
       {
         enableHighAccuracy: true,
@@ -190,9 +192,48 @@ export function formatLocationPermissionForDiagnostics(
 
 export async function watchLocation(
   onUpdate: (location: UserLocation) => void,
+  onError?: (error: LocationServiceError) => void,
 ): Promise<LocationWatchSubscription> {
-  onUpdate(await getCurrentLocation());
-  return { remove: () => undefined };
+  if (__DEV__) {
+    const overrideLocation = resolveDevOverrideLocation();
+    if (overrideLocation) {
+      onUpdate(overrideLocation);
+      return { remove: () => undefined };
+    }
+  }
+
+  if (typeof navigator === 'undefined' || !navigator.geolocation) {
+    onUpdate(await getCurrentLocation());
+    return { remove: () => undefined };
+  }
+
+  try {
+    onUpdate(await getCurrentLocation());
+  } catch (error) {
+    if (error instanceof LocationServiceError) {
+      onError?.(error);
+    }
+  }
+
+  const watchId = navigator.geolocation.watchPosition(
+    (position) => {
+      onUpdate(toUserLocationFromPosition(position));
+    },
+    (error) => {
+      onError?.(mapGeolocationError(error));
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: BROWSER_GEOLOCATION_TIMEOUT_MS,
+      maximumAge: 10_000,
+    },
+  );
+
+  return {
+    remove: () => {
+      navigator.geolocation.clearWatch(watchId);
+    },
+  };
 }
 
 export async function areLocationServicesEnabled(): Promise<boolean> {

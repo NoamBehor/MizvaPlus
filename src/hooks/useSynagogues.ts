@@ -2,6 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { DEFAULT_SYNAGOGUE_RADIUS_METERS } from '@/constants/synagogues';
 import { logDiagnosticEvent } from '@/services/diagnostics/diagnosticLogger';
+import {
+  getOrLockSearchCoordinates,
+  relockSearchCoordinates,
+} from '@/services/map/synagogueSearchSession';
 import { getLastOverpassFetchMeta } from '@/services/overpass';
 import { getNearbySynagogues } from '@/services/synagogues';
 import { useDiagnosticsStore } from '@/store/diagnosticsStore';
@@ -15,7 +19,7 @@ export interface UseSynagoguesResult {
   cacheNotice: string | null;
   isStaleCache: boolean;
   isEmpty: boolean;
-  refresh: () => Promise<void>;
+  refresh: (nextCoordinates?: Coordinates) => Promise<void>;
 }
 
 /**
@@ -127,16 +131,22 @@ export function useSynagogues(
       return;
     }
 
-    void load(coordinates);
+    const searchCoordinates = getOrLockSearchCoordinates(coordinates);
+    void load(searchCoordinates);
   }, [coordinates, latitude, longitude, load]);
 
-  const refresh = useCallback(async () => {
-    if (!coordinates) {
-      return;
-    }
-    lastRequestKeyRef.current = null;
-    await load(coordinates, true);
-  }, [coordinates, load]);
+  const refresh = useCallback(
+    async (nextCoordinates?: Coordinates) => {
+      const live = nextCoordinates ?? coordinates;
+      if (!live) {
+        return;
+      }
+      const searchCoordinates = relockSearchCoordinates(live);
+      lastRequestKeyRef.current = null;
+      await load(searchCoordinates, true);
+    },
+    [coordinates, load],
+  );
 
   return {
     synagogues,

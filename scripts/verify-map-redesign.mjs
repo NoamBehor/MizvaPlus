@@ -67,6 +67,7 @@ const constantsSrc = read('src/constants/minyanLive.ts');
 const eligibilitySrc = read('src/utils/minyanReportEligibility.ts');
 const serviceSrc = read('src/services/minyanLive/minyanLiveService.ts');
 const mapScreenSrc = read('src/screens/map/MapScreen.tsx');
+const mapScreenWebSrc = read('src/screens/map/MapScreen.web.tsx');
 const headerSrc = read('src/components/map/MapScreenHeader.tsx');
 const selectedCardSrc = read('src/components/map/MapSelectedSynagogueCard.tsx');
 const packageJson = JSON.parse(read('package.json'));
@@ -164,15 +165,50 @@ record(
 record(
   'layout: synagogue list below map',
   mapScreenSrc.includes('MapSynagogueSheet') &&
-    !mapScreenSrc.includes('MapFloatingControls') &&
-    !headerSrc.includes('onRefreshLocation') &&
-    !headerSrc.includes('onRefreshSynagogues'),
+    !mapScreenSrc.includes('MapFloatingControls'),
 );
 record(
-  'layout: list and pins capped at 5 nearest',
+  'layout: header has a small manual refresh control',
+  headerSrc.includes('onRefreshLocation') &&
+    headerSrc.includes('רענון מיקום ובתי כנסת') &&
+    headerSrc.includes("name=\"refresh\"") &&
+    mapScreenSrc.includes('handleManualRefresh') &&
+    mapScreenSrc.includes('onRefreshLocation'),
+);
+record(
+  'layout: five nearest plus minyan shortages',
   read('src/utils/mapSynagogues.ts').includes('MAP_NEAREST_LIMIT = 5') &&
-    mapScreenSrc.includes('takeNearestSynagogues') &&
+    read('src/utils/mapSynagogues.ts').includes('takeMapDisplaySynagogues') &&
+    mapScreenSrc.includes('takeMapDisplaySynagogues') &&
+    mapScreenSrc.includes('resolveDisplayedSynagogues') &&
     mapScreenSrc.includes('displayedSynagogues'),
+);
+record(
+  'layout: synagogue search is locked to the session',
+  read('src/services/map/synagogueSearchSession.ts').includes(
+    'getOrLockSearchCoordinates',
+  ) &&
+    read('src/services/map/synagogueSearchSession.ts').includes(
+      'relockSearchCoordinates',
+    ) &&
+    read('src/hooks/useSynagogues.ts').includes('getOrLockSearchCoordinates') &&
+    read('src/hooks/useSynagogues.ts').includes('relockSearchCoordinates'),
+);
+record(
+  'layout: selecting a synagogue scrolls back to the map',
+  mapScreenSrc.includes('scrollTo({ y: 0, animated: true })') &&
+    mapScreenWebSrc.includes('scrollTo({ y: 0, animated: true })') &&
+    read('src/hooks/useCollapsingMapHeight.ts').includes('expandMap') &&
+    mapScreenSrc.includes('expandMap()') &&
+    mapScreenWebSrc.includes('expandMap()'),
+);
+record(
+  'layout: web map does not follow GPS ticks',
+  mapScreenWebSrc.includes('followUser={false}') &&
+    mapScreenWebSrc.includes('recenterNonce') &&
+    read('src/components/map/GoogleMapsWebView.web.tsx').includes(
+      'centerRef.current.latitude',
+    ),
 );
 record(
   'layout: map tab watches GPS',
@@ -199,6 +235,66 @@ record(
   'script registered',
   packageJson.scripts['verify:map-redesign'] ===
     'node scripts/verify-map-redesign.mjs',
+);
+
+function synagogueNeedsMinyan(minyan) {
+  return Boolean(minyan && minyan.missingCount > 0);
+}
+
+function takeNearestSynagogues(synagogues, limit = 5) {
+  return [...synagogues]
+    .sort(
+      (left, right) =>
+        (left.distanceMeters ?? Number.POSITIVE_INFINITY) -
+        (right.distanceMeters ?? Number.POSITIVE_INFINITY),
+    )
+    .slice(0, limit);
+}
+
+function takeMapDisplaySynagogues(synagogues, limit = 5) {
+  const nearest = takeNearestSynagogues(synagogues, limit);
+  const needsMinyan = synagogues.filter((synagogue) =>
+    synagogueNeedsMinyan(synagogue.minyan),
+  );
+  const byId = new Map();
+  for (const synagogue of [...nearest, ...needsMinyan]) {
+    byId.set(synagogue.id, synagogue);
+  }
+  return [...byId.values()].sort(
+    (left, right) =>
+      (left.distanceMeters ?? Number.POSITIVE_INFINITY) -
+      (right.distanceMeters ?? Number.POSITIVE_INFINITY),
+  );
+}
+
+const sampleSynagogues = [
+  { id: 'a', distanceMeters: 10 },
+  { id: 'b', distanceMeters: 20 },
+  { id: 'c', distanceMeters: 30 },
+  { id: 'd', distanceMeters: 40 },
+  { id: 'e', distanceMeters: 50 },
+  { id: 'f', distanceMeters: 60 },
+  {
+    id: 'far-minyan',
+    distanceMeters: 900,
+    minyan: { missingCount: 3 },
+  },
+];
+const displayed = takeMapDisplaySynagogues(sampleSynagogues);
+
+record(
+  'display union keeps five nearest plus far minyan shortage',
+  displayed.length === 6 &&
+    displayed.some((synagogue) => synagogue.id === 'far-minyan') &&
+    !displayed.some((synagogue) => synagogue.id === 'f'),
+);
+
+record(
+  'display union ignores a full minyan farther than the nearest five',
+  takeMapDisplaySynagogues([
+    ...sampleSynagogues,
+    { id: 'far-full', distanceMeters: 1200, minyan: { missingCount: 0 } },
+  ]).every((synagogue) => synagogue.id !== 'far-full'),
 );
 
 function main() {

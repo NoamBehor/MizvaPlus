@@ -204,6 +204,12 @@ function main() {
       locationWeb.includes('DEV_PREVIEW_DEFAULT_COORDINATES'),
   );
 
+  record(
+    'web: watchLocation uses the browser watch API',
+    locationWeb.includes('navigator.geolocation.watchPosition') &&
+      locationWeb.includes('clearWatch'),
+  );
+
   const failed = results.filter((item) => !item.pass);
   const passed = results.length - failed.length;
   console.log(`\n${passed}/${results.length} passed`);

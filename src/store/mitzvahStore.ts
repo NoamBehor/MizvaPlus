@@ -132,6 +132,10 @@ interface MitzvahState {
   saveTrackedSelections: (
     userId: string,
     enabledMitzvahIds: string[],
+    reminderDraft?: Record<
+      string,
+      { reminderEnabled: boolean; reminderTime: string }
+    >,
   ) => Promise<'saved' | 'noop'>;
 
   reset: () => void;
@@ -715,7 +719,7 @@ export const useMitzvahStore = create<MitzvahState>((set, get) => ({
 
 
 
-  saveTrackedSelections: async (userId, enabledMitzvahIds) => {
+  saveTrackedSelections: async (userId, enabledMitzvahIds, reminderDraft) => {
 
     const { preferences, mitzvot } = get();
 
@@ -741,7 +745,39 @@ export const useMitzvahStore = create<MitzvahState>((set, get) => ({
 
       const shouldEnable = nextEnabled.has(mitzvah.id);
 
-      if (preference.enabled === shouldEnable) {
+      const draftReminder = reminderDraft?.[mitzvah.id];
+
+      const nextReminderEnabled = shouldEnable
+
+        ? (draftReminder?.reminderEnabled ?? preference.reminderEnabled)
+
+        : false;
+
+      const nextReminderTime =
+
+        draftReminder?.reminderTime ??
+
+        preference.reminderTime ??
+
+        mitzvah.defaultTime ??
+
+        '07:30';
+
+      const trackingChanged = preference.enabled !== shouldEnable;
+
+      const reminderChanged =
+
+        shouldEnable &&
+
+        (preference.reminderEnabled !== nextReminderEnabled ||
+
+          (nextReminderEnabled &&
+
+            preference.reminderTime !== nextReminderTime));
+
+
+
+      if (!trackingChanged && !reminderChanged) {
 
         continue;
 
@@ -755,7 +791,9 @@ export const useMitzvahStore = create<MitzvahState>((set, get) => ({
 
         enabled: shouldEnable,
 
-        reminderEnabled: shouldEnable ? preference.reminderEnabled : false,
+        reminderEnabled: nextReminderEnabled,
+
+        reminderTime: nextReminderTime,
 
         updatedAt: new Date().toISOString(),
 

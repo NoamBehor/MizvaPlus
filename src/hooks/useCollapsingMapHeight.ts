@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { Dimensions } from 'react-native';
 import {
   Extrapolation,
@@ -49,9 +50,14 @@ export function useCollapsingMapHeight() {
     ),
   }));
 
+  const expandMap = useCallback(() => {
+    scrollY.value = 0;
+  }, [scrollY]);
+
   return {
     expandedHeight: MAP_EXPANDED_HEIGHT,
     onScroll,
+    expandMap,
     mapWrapperStyle,
     legendStyle,
   };

@@ -1,9 +1,10 @@
-import { Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 
+import { AppIcon } from '@/components/common/AppIcon';
 import { MapFilterChips } from '@/components/map/MapFilterChips';
 import { colors } from '@/constants/colors';
 import { appRootLayoutStyle } from '@/constants/layoutDirection';
-import { shadows, spacing, typography } from '@/constants/theme';
+import { borderRadius, shadows, spacing, typography } from '@/constants/theme';
 import type { MapSynagogueFilter } from '@/utils/mapSynagogues';
 
 export type MapLocationTone = 'ok' | 'fallback' | 'loading' | 'unknown';
@@ -15,6 +16,8 @@ interface MapScreenHeaderProps {
   activeMinyanCount?: number;
   filter?: MapSynagogueFilter;
   onFilterChange?: (filter: MapSynagogueFilter) => void;
+  onRefreshLocation?: () => void;
+  isRefreshing?: boolean;
 }
 
 function locationChipColors(tone: MapLocationTone) {
@@ -37,9 +40,12 @@ export function MapScreenHeader({
   activeMinyanCount = 0,
   filter = 'all',
   onFilterChange,
+  onRefreshLocation,
+  isRefreshing = false,
 }: MapScreenHeaderProps) {
   const chip = locationChipColors(locationTone);
   const knownCount = typeof synagogueCount === 'number' ? synagogueCount : 0;
+  const showLocationRow = Boolean(locationLabel) || Boolean(onRefreshLocation);
 
   return (
     <View
@@ -55,42 +61,92 @@ export function MapScreenHeader({
         },
       ]}
     >
-      <View className="flex-row items-start justify-between gap-3">
-        <View className="min-w-0 flex-1">
-          <Text style={[typography.title, { fontSize: 22 }]} numberOfLines={1}>
-            בתי כנסת בקרבתך
-          </Text>
-          <Text style={[typography.caption, { marginTop: spacing.xs }]}>
-            מצאו מקומות תפילה, מניינים פעילים וניווט לפי המיקום שלכם
-          </Text>
-        </View>
+      <Text
+        style={[
+          typography.title,
+          {
+            fontSize: 26,
+            lineHeight: 32,
+            color: colors.text,
+          },
+        ]}
+        accessibilityRole="header"
+      >
+        בתי כנסת בקרבתך
+      </Text>
+      <Text
+        style={[
+          typography.caption,
+          {
+            marginTop: spacing.xs,
+            color: colors.muted,
+            lineHeight: 18,
+          },
+        ]}
+      >
+        מצאו מקומות תפילה, מניינים פעילים וניווט לפי המיקום שלכם
+      </Text>
 
-        {locationLabel ? (
-          <View
-            className="rounded-full border px-2.5 py-1"
-            style={{
-              backgroundColor: chip.bg,
-              borderColor: chip.border,
-              maxWidth: 132,
-              flexShrink: 0,
-            }}
-          >
-            <Text
+      {showLocationRow ? (
+        <View
+          className="mt-2.5 flex-row items-center gap-2"
+          style={{ width: '100%' }}
+        >
+          {locationLabel ? (
+            <View
+              className="min-w-0 flex-1 rounded-full border px-3 py-1.5"
+              style={{
+                backgroundColor: chip.bg,
+                borderColor: chip.border,
+              }}
+            >
+              <Text
+                style={[
+                  typography.caption,
+                  {
+                    color: chip.text,
+                    fontWeight: '600',
+                    fontSize: 12,
+                    textAlign: 'right',
+                  },
+                ]}
+                numberOfLines={2}
+              >
+                {locationTone === 'loading' ? 'מאתרים מיקום…' : locationLabel}
+              </Text>
+            </View>
+          ) : (
+            <View className="flex-1" />
+          )}
+
+          {onRefreshLocation ? (
+            <Pressable
+              onPress={onRefreshLocation}
+              disabled={isRefreshing}
+              accessibilityRole="button"
+              accessibilityLabel="רענון מיקום ובתי כנסת"
+              accessibilityState={{ busy: isRefreshing, disabled: isRefreshing }}
+              className="h-9 w-9 items-center justify-center rounded-xl border"
               style={[
-                typography.caption,
+                shadows.pill,
                 {
-                  color: chip.text,
-                  fontWeight: '600',
-                  fontSize: 11,
+                  backgroundColor: colors.surface,
+                  borderColor: colors.border,
+                  borderRadius: borderRadius.lg,
+                  opacity: isRefreshing ? 0.55 : 1,
+                  flexShrink: 0,
                 },
               ]}
-              numberOfLines={2}
             >
-              {locationTone === 'loading' ? 'מאתרים מיקום…' : locationLabel}
-            </Text>
-          </View>
-        ) : null}
-      </View>
+              {isRefreshing ? (
+                <ActivityIndicator size="small" color={colors.secondary} />
+              ) : (
+                <AppIcon name="refresh" size={18} color={colors.secondary} />
+              )}
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
 
       {onFilterChange ? (
         <View className="mt-3">
