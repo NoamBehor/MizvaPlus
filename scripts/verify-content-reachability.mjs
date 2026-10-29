@@ -71,13 +71,19 @@ record(
   'HolidayPrepCard renders common mistakes',
   holidayPrep.includes("'טעויות נפוצות'"),
 );
+const explanationView = readSource('src/utils/mitzvahExplanationView.ts');
+const insightCard = readSource(
+  'src/components/mitzvah/explanation/ExplanationInsightCard.tsx',
+);
 record(
   'MitzvahDetailScreen uses getMitzvahContentText',
-  mitzvahDetail.includes('getMitzvahContentText(mitzvah)'),
+  mitzvahDetail.includes('buildMitzvahExplanationView') &&
+    explanationView.includes('getMitzvahContentText(mitzvah)'),
 );
 record(
   'MitzvahDetailScreen renders detailed section',
-  mitzvahDetail.includes('הסבר מפורט'),
+  mitzvahDetail.includes('ExplanationInsightCard') &&
+    insightCard.includes('הסבר מפורט'),
 );
 record(
   'MitzvahDetailScreen links to holiday guide',

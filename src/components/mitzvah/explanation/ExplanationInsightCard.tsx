@@ -1,9 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppIcon } from '@/components/common/AppIcon';
+import { colors } from '@/constants/colors';
 import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
 import { homeFonts, homeTheme } from '@/constants/homeTheme';
-import { borderRadius, spacing, typography } from '@/constants/theme';
+import { borderRadius, spacing, surfaces, typography } from '@/constants/theme';
 
 interface ExplanationInsightCardProps {
   paragraphs: string[];
@@ -22,7 +23,7 @@ export function ExplanationInsightCard({
     <View style={styles.card}>
       <View style={styles.header}>
         <View style={styles.iconTile}>
-          <AppIcon name="sparkles" size={18} color={homeTheme.goldDeep} />
+          <AppIcon name="sparkles" size={18} color={colors.sacredAmber} />
         </View>
         <Text
           style={[
@@ -56,10 +57,10 @@ export function ExplanationInsightCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: homeTheme.surface,
+    backgroundColor: surfaces.prayerActionSurface,
     borderRadius: borderRadius.xxl,
     borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.9)',
+    borderColor: surfaces.prayerActionBorder,
     padding: spacing.lg,
     marginBottom: homeTheme.sectionGap,
     ...homeTheme.cardShadow,
@@ -82,21 +83,21 @@ const styles = StyleSheet.create({
     backgroundColor: homeTheme.goldSoft,
   },
   heading: {
-    color: homeTheme.text,
+    color: colors.sacredInk,
     flexShrink: 1,
   },
   list: {
     gap: spacing.sm,
   },
   row: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.sacredCanvas,
     borderRadius: homeTheme.cardRadius,
     borderWidth: 1,
-    borderColor: 'rgba(241, 245, 249, 0.9)',
+    borderColor: surfaces.prayerActionBorder,
     padding: spacing.md,
   },
   paragraph: {
-    color: homeTheme.text,
+    color: colors.sacredInk,
     lineHeight: 22,
   },
 });

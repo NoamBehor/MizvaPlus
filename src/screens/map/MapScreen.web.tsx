@@ -51,8 +51,7 @@ export function MapScreen() {
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const { scrollPaddingBottom } = useScrollBottomInset();
-  const { expandedHeight, onScroll, expandMap, mapWrapperStyle } =
-    useCollapsingMapHeight();
+  const { onScroll, mapWrapperStyle } = useCollapsingMapHeight();
 
   const {
     location,
@@ -218,15 +217,13 @@ export function MapScreen() {
     setSelectedSynagogueId(synagogue.id);
     setFocusSynagogueId(synagogue.id);
     scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    expandMap();
-  }, [expandMap]);
+  }, []);
 
   const focusSynagogue = useCallback((synagogue: Synagogue) => {
     setSelectedSynagogueId(synagogue.id);
     setFocusSynagogueId(synagogue.id);
     scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-    expandMap();
-  }, [expandMap]);
+  }, []);
 
   const handleRetryAll = useCallback(async () => {
     const nextLocation = await refreshLocation();
@@ -353,8 +350,8 @@ export function MapScreen() {
 
       {showMap && coordinates ? (
         <View className="flex-1">
-          <Animated.View style={mapWrapperStyle}>
-            <View style={{ height: expandedHeight, width: '100%' }}>
+          <Animated.View collapsable={false} style={mapWrapperStyle}>
+            <View style={{ height: '100%', width: '100%' }}>
               <GoogleMapsWebView
                 center={coordinates}
                 synagogues={mapSynagogues}

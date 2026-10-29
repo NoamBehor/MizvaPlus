@@ -1,11 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { colors } from '@/constants/colors';
 import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
 import { homeFonts, homeTheme } from '@/constants/homeTheme';
 import { spacing, typography } from '@/constants/theme';
 import type { MitzvahCategory } from '@/types/mitzvah';
 
-const BADGE_BORDER = 'rgba(226, 232, 240, 0.9)';
+const BADGE_BORDER = colors.sacredLine;
 
 interface ExplanationTopBarProps {
   category: MitzvahCategory;
@@ -105,14 +106,14 @@ const styles = StyleSheet.create({
     borderColor: homeTheme.goldBorder,
   },
   otherBadge: {
-    backgroundColor: homeTheme.primarySoft,
-    borderColor: homeTheme.primaryBorder,
+    backgroundColor: colors.sacredCanvas,
+    borderColor: colors.sacredLine,
   },
   dailyBadgeText: {
     color: homeTheme.goldDeep,
   },
   otherBadgeText: {
-    color: homeTheme.primary,
+    color: colors.sacredNavy,
   },
   dot: {
     width: 6,
@@ -123,6 +124,6 @@ const styles = StyleSheet.create({
     backgroundColor: homeTheme.goldDeep,
   },
   otherDot: {
-    backgroundColor: homeTheme.primary,
+    backgroundColor: colors.sacredAmber,
   },
 });

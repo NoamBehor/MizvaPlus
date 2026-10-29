@@ -16,6 +16,16 @@ export const colors = {
   navyMid: '#142354',
   gold: '#FDE68A',
   goldDeep: '#D97706',
+  /** Sacred Clarity reading roles. Shared by the prayer reader and related screens. */
+  sacredCanvas: '#FBF9F5',
+  sacredNavy: '#0F172A',
+  sacredAmber: '#B45309',
+  sacredAmberSoft: '#FFFBEB',
+  sacredAmberBorder: '#FDE68A',
+  sacredAmberText: '#92400E',
+  sacredInk: '#1B1C1A',
+  sacredSlate: '#45464D',
+  sacredLine: '#E2E8F0',
   slate: '#1E293B',
   slateMuted: '#64748B',
 } as const;

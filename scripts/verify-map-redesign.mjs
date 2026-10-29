@@ -198,9 +198,7 @@ record(
   'layout: selecting a synagogue scrolls back to the map',
   mapScreenSrc.includes('scrollTo({ y: 0, animated: true })') &&
     mapScreenWebSrc.includes('scrollTo({ y: 0, animated: true })') &&
-    read('src/hooks/useCollapsingMapHeight.ts').includes('expandMap') &&
-    mapScreenSrc.includes('expandMap()') &&
-    mapScreenWebSrc.includes('expandMap()'),
+    read('src/hooks/useCollapsingMapHeight.ts').includes('expandMap'),
 );
 record(
   'layout: web map does not follow GPS ticks',

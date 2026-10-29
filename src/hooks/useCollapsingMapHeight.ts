@@ -21,6 +21,9 @@ const MAP_COLLAPSE_RANGE = Math.max(
   MAP_EXPANDED_HEIGHT - MAP_COLLAPSED_HEIGHT,
 );
 
+/** Extra scroll before the map is fully collapsed — gentler, less abrupt motion. */
+const MAP_COLLAPSE_SCROLL_DISTANCE = Math.round(MAP_COLLAPSE_RANGE * 1.35);
+
 export function useCollapsingMapHeight() {
   const scrollY = useSharedValue(0);
 
@@ -33,7 +36,7 @@ export function useCollapsingMapHeight() {
   const mapWrapperStyle = useAnimatedStyle(() => ({
     height: interpolate(
       scrollY.value,
-      [0, MAP_COLLAPSE_RANGE],
+      [0, MAP_COLLAPSE_SCROLL_DISTANCE],
       [MAP_EXPANDED_HEIGHT, MAP_COLLAPSED_HEIGHT],
       Extrapolation.CLAMP,
     ),
@@ -44,7 +47,7 @@ export function useCollapsingMapHeight() {
   const legendStyle = useAnimatedStyle(() => ({
     opacity: interpolate(
       scrollY.value,
-      [0, MAP_COLLAPSE_RANGE * 0.45],
+      [0, MAP_COLLAPSE_SCROLL_DISTANCE * 0.5],
       [1, 0],
       Extrapolation.CLAMP,
     ),
@@ -61,4 +64,4 @@ export function useCollapsingMapHeight() {
     mapWrapperStyle,
     legendStyle,
   };
-}
+};

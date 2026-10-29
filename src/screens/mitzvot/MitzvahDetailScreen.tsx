@@ -4,13 +4,14 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 
 import { ScreenContainer } from '@/components/common/ScreenContainer';
 import { ExplanationActionCard } from '@/components/mitzvah/explanation/ExplanationActionCard';
+import { ExplanationAutomaticReminderCard } from '@/components/mitzvah/explanation/ExplanationAutomaticReminderCard';
 import { ExplanationCompletionBar } from '@/components/mitzvah/explanation/ExplanationCompletionBar';
 import { ExplanationEssenceCard } from '@/components/mitzvah/explanation/ExplanationEssenceCard';
 import { ExplanationHero } from '@/components/mitzvah/explanation/ExplanationHero';
 import { ExplanationInsightCard } from '@/components/mitzvah/explanation/ExplanationInsightCard';
 import { ExplanationReminderCard } from '@/components/mitzvah/explanation/ExplanationReminderCard';
 import { ExplanationTopBar } from '@/components/mitzvah/explanation/ExplanationTopBar';
-import { homeTheme } from '@/constants/homeTheme';
+import { colors } from '@/constants/colors';
 import { FAST_MITZVAH_IDS } from '@/constants/calendarMitzvahMap';
 import { typography } from '@/constants/theme';
 import {
@@ -18,6 +19,12 @@ import {
 } from '@/navigation/navigationRef';
 import type { RootStackParamList } from '@/navigation/types';
 import { calendarService } from '@/services/calendar';
+import {
+  formatHebrewDateLabelForDateKey,
+  getOccasionReminderContext,
+  getSunsetIsoForDateKey,
+} from '@/services/calendar/hebcalProvider';
+import { resolveNextOccasionDateLabels } from '@/services/calendarMitzvahReminders';
 import { isCalendarMitzvahActiveToday } from '@/services/calendarMitzvot';
 import { getHolidayGuide } from '@/services/holidayGuideService';
 import { resolveMitzvahFastContext } from '@/services/mitzvahFastContext';
@@ -120,6 +127,27 @@ export function MitzvahDetailScreen({
     [calendarEvents, mitzvah],
   );
 
+  const occasionEvents = useMemo(() => {
+    if (!mitzvah || (mitzvah.category !== 'fast' && mitzvah.category !== 'holiday')) {
+      return [];
+    }
+
+    return getOccasionReminderContext(new Date(), 400, locationInput).events;
+  }, [locationInput?.latitude, locationInput?.longitude, mitzvah]);
+
+  const nextOccasionDate = useMemo(() => {
+    if (!mitzvah || (mitzvah.category !== 'fast' && mitzvah.category !== 'holiday')) {
+      return null;
+    }
+
+    return resolveNextOccasionDateLabels({
+      mitzvahId: mitzvah.id,
+      events: occasionEvents,
+      sunsetForDateKey: (dateKey) => getSunsetIsoForDateKey(dateKey, locationInput),
+      formatHebrewDateKey: formatHebrewDateLabelForDateKey,
+    });
+  }, [mitzvah, occasionEvents, locationInput]);
+
   const handleComplete = async () => {
     if (!user || completed || isCompleting) {
       return;
@@ -156,7 +184,7 @@ export function MitzvahDetailScreen({
 
   if (!mitzvah || !user) {
     return (
-      <ScreenContainer backgroundColor={homeTheme.canvas}>
+      <ScreenContainer backgroundColor={colors.sacredCanvas}>
         <Pressable
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
@@ -213,11 +241,12 @@ export function MitzvahDetailScreen({
       holidayGuide && holidayKey
         ? { key: holidayKey, titleHebrew: holidayGuide.titleHebrew }
         : null,
+    nextOccasionDate,
   });
 
   return (
     <ScreenContainer
-      backgroundColor={homeTheme.canvas}
+      backgroundColor={colors.sacredCanvas}
       horizontalPadding={20}
       footer={
         <ExplanationCompletionBar
@@ -240,6 +269,7 @@ export function MitzvahDetailScreen({
         icon={view.icon}
         title={view.title}
         description={view.description}
+        nextOccasionDate={view.nextOccasionDate}
         xpReward={view.xpReward}
         timing={view.timing}
         status={view.status}
@@ -261,23 +291,30 @@ export function MitzvahDetailScreen({
         }}
       />
       <ExplanationInsightCard paragraphs={view.paragraphs} />
-      <ExplanationReminderCard
-        reminderEnabled={view.reminderEnabled}
-        trackingEnabled={view.trackingEnabled}
-        timeLabel={view.reminderTimeLabel}
-        pickerValue={view.reminderPickerValue}
-        editing={showReminderConfig}
-        preferenceReady={view.preferenceReady}
-        permissionMessage={permissionDeniedMessage}
-        onToggleEdit={() => setShowReminderConfig((current) => !current)}
-        onReminderChange={(enabled) => {
-          clearPermissionMessage();
-          void setReminder(mitzvahId, enabled);
-        }}
-        onTimeChange={(time) => {
-          void setReminderTime(mitzvahId, time);
-        }}
-      />
+      {view.category === 'daily' ? (
+        <ExplanationReminderCard
+          reminderEnabled={view.reminderEnabled}
+          trackingEnabled={view.trackingEnabled}
+          timeLabel={view.reminderTimeLabel}
+          pickerValue={view.reminderPickerValue}
+          editing={showReminderConfig}
+          preferenceReady={view.preferenceReady}
+          permissionMessage={permissionDeniedMessage}
+          onToggleEdit={() => setShowReminderConfig((current) => !current)}
+          onReminderChange={(enabled) => {
+            clearPermissionMessage();
+            void setReminder(mitzvahId, enabled);
+          }}
+          onTimeChange={(time) => {
+            void setReminderTime(mitzvahId, time);
+          }}
+        />
+      ) : (
+        <ExplanationAutomaticReminderCard
+          category={view.category}
+          trackingEnabled={view.trackingEnabled}
+        />
+      )}
     </ScreenContainer>
   );
 }

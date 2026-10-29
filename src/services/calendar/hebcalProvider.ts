@@ -4,6 +4,7 @@ import {
   HDate,
   HebrewCalendar,
   Location,
+  Zmanim,
 } from '@hebcal/core';
 
 import {
@@ -36,6 +37,7 @@ import {
 } from '@/utils/parasha';
 import { DEFAULT_PLACE_COORDINATES, DEFAULT_PLACE_NAME } from '@/constants/defaultPlace';
 import {
+  addDaysToDateKey,
   formatIsraelTime,
   getCalendarDateKey,
   ISRAEL_TIMEZONE,
@@ -528,3 +530,85 @@ export function getCalendarLocation(locationInput?: CalendarLocationInput): {
 
 /** Test helper: build parasha from a raw Hebcal event. */
 export { buildWeeklyParashaFromEvent };
+
+export interface OccasionReminderContext {
+  events: HebrewCalendarEvent[];
+}
+
+function isOccasionReminderEvent(event: HebrewCalendarEvent): boolean {
+  if (
+    event.type === 'CANDLE_LIGHTING' ||
+    event.type === 'FAST' ||
+    event.type === 'HOLIDAY'
+  ) {
+    return true;
+  }
+
+  return (event.linkedMitzvahIds ?? []).some(
+    (mitzvahId) =>
+      FAST_MITZVAH_IDS.has(mitzvahId) || HOLIDAY_MITZVAH_IDS.has(mitzvahId),
+  );
+}
+
+/**
+ * Holiday and fast events for the next occurrence window, including untimed
+ * holiday days that {@link HebcalCalendarProvider.getUpcomingEvents} drops.
+ */
+export function getOccasionReminderContext(
+  fromDate: Date,
+  daysAhead: number,
+  locationInput?: CalendarLocationInput,
+): OccasionReminderContext {
+  const resolved = resolveLocation(locationInput);
+  const startKey = addDaysToDateKey(getCalendarDateKey(fromDate), -2);
+  const endKey = addDaysToDateKey(getCalendarDateKey(fromDate), daysAhead);
+  const rawEvents = collectRawEventsForRange(
+    startKey,
+    endKey,
+    resolved.location,
+  );
+  const events: HebrewCalendarEvent[] = [];
+  const seen = new Set<string>();
+
+  for (const ev of rawEvents) {
+    const dateKey = gregorianDateKeyFromHDate(ev.getDate());
+    if (dateKey < startKey || dateKey > endKey) {
+      continue;
+    }
+
+    const mapped = mapHebcalEvent(ev, dateKey);
+    if (!isOccasionReminderEvent(mapped) || seen.has(mapped.id)) {
+      continue;
+    }
+
+    seen.add(mapped.id);
+    events.push(mapped);
+  }
+
+  return { events };
+}
+
+export function formatHebrewDateLabelForDateKey(dateKey: string): string {
+  const hd = new HDate(parseDateKey(dateKey));
+  return hd.renderGematriya(true);
+}
+
+export function getSunsetIsoForDateKey(
+  dateKey: string,
+  locationInput?: CalendarLocationInput,
+): string | null {
+  try {
+    const sunset = new Zmanim(
+      resolveLocation(locationInput).location,
+      parseDateKey(dateKey),
+      false,
+    ).sunset();
+    if (!(sunset instanceof Date) || Number.isNaN(sunset.getTime())) {
+      return null;
+    }
+
+    return sunset.toISOString();
+  } catch {
+    return null;
+  }
+}

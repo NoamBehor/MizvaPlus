@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Dimensions,
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -11,17 +10,23 @@ import {
 } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { NusachAvailabilityRow } from '@/components/prayer/NusachChipRow';
 import { PrayerReaderAudioControls } from '@/components/prayer/PrayerReaderAudioControls';
+import { PrayerSectionBlock } from '@/components/prayer/PrayerSectionBlock';
+import { RitualGuideSectionBlock } from '@/components/prayer/RitualGuideSectionBlock';
+import { SectionNavigator } from '@/components/prayer/SectionJumpChips';
 import { colors } from '@/constants/colors';
+import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
+import { homeFonts } from '@/constants/homeTheme';
 import { SHACHARIT_TOC_CATEGORIES } from '@/constants/shacharitStructure';
 import {
-  isMajorPrayerSurfaceSection,
   prayerRtlBlock,
   prayerRtlContainer,
   prayerRtlText,
 } from '@/constants/prayerReaderLayout';
-import { borderRadius, spacing, surfaces, typography } from '@/constants/theme';
+import { spacing, surfaces, typography } from '@/constants/theme';
 import { stopSpeaking } from '@/services/audio';
 import { useHebrewCalendar } from '@/hooks/useHebrewCalendar';
 import type { RootStackParamList } from '@/navigation/types';
@@ -49,22 +54,16 @@ import {
   type EnrichedPrayerSection,
   type PrayerFontSize,
 } from '@/types/prayer';
-import type { RitualGuideSection, RitualGuideSectionKind } from '@/types/ritualGuide';
-
 type PrayerReaderScreenProps = NativeStackScreenProps<
   RootStackParamList,
   'PrayerReader'
 >;
 
-const RITUAL_ACTION_COLOR = '#5C4A32';
-const RITUAL_BLESSING_COLOR = colors.text;
-const RITUAL_INSTRUCTION_COLOR = colors.accent;
-const SECTION_CHIP_MAX_WIDTH = Dimensions.get('window').width * 0.72;
-
 export function PrayerReaderScreen({
   navigation,
   route,
 }: PrayerReaderScreenProps) {
+  const insets = useSafeAreaInsets();
   const { prayerId, ritualGuideId, nusach } = route.params;
   const { dayInfo } = useHebrewCalendar();
   const prayer = prayerId ? getPrayer(prayerId, nusach) : null;
@@ -271,8 +270,12 @@ export function PrayerReaderScreen({
   if (!prayer && !ritualGuide) {
     return (
       <View
-        className="flex-1 px-4 pt-4"
-        style={{ backgroundColor: surfaces.prayerReaderBackground }}
+        style={{
+          flex: 1,
+          paddingHorizontal: spacing.md,
+          paddingTop: insets.top + spacing.sm,
+          backgroundColor: surfaces.prayerReaderBackground,
+        }}
       >
         <ReaderHeader
           title="תפילה"
@@ -293,7 +296,6 @@ export function PrayerReaderScreen({
     );
   }
 
-  const lineHeight = Math.round(fontSize * 1.75);
   const paragraphSpacing = Math.round(fontSize * 0.9);
   const sectionSpacing = Math.round(fontSize * 1.6);
   const readerBottomInset = spacing.xxl + 72;
@@ -305,7 +307,13 @@ export function PrayerReaderScreen({
       className="flex-1"
       style={{ backgroundColor: surfaces.prayerReaderBackground }}
     >
-      <View className="px-4 pt-4" style={prayerRtlContainer}>
+      <View
+        style={{
+          ...prayerRtlContainer,
+          paddingHorizontal: spacing.md,
+          paddingTop: insets.top + spacing.sm,
+        }}
+      >
         <ReaderHeader
           title={readerTitle}
           nusachLabel={`נוסח ${NUSACH_LABELS[nusach]}`}
@@ -375,7 +383,6 @@ export function PrayerReaderScreen({
                 stepNumber={ritualStepNumbers[section.id] ?? null}
                 isLast={index === ritualSections.length - 1}
                 fontSize={fontSize}
-                lineHeight={lineHeight}
                 paragraphSpacing={paragraphSpacing}
                 sectionSpacing={sectionSpacing}
                 onLayout={(y) => handleSectionLayout(section.id, y)}
@@ -387,7 +394,6 @@ export function PrayerReaderScreen({
                 section={section}
                 isLast={index === prayerSections.length - 1}
                 fontSize={fontSize}
-                lineHeight={lineHeight}
                 paragraphSpacing={paragraphSpacing}
                 sectionSpacing={sectionSpacing}
                 onLayout={(y) => handleSectionLayout(section.id, y)}
@@ -395,7 +401,7 @@ export function PrayerReaderScreen({
             ))}
       </ScrollView>
 
-      <PrayerReaderAudioControls content={audioContent} />
+      <PrayerReaderAudioControls content={audioContent} title={readerTitle} />
 
       {tocCategories ? (
         <SectionTableOfContents
@@ -435,30 +441,64 @@ function ReaderHeader({
   canDecrease,
   canIncrease,
 }: ReaderHeaderProps) {
+  const fontsLoaded = useHomeFonts();
+
   return (
-    <View className="mb-4">
-      <View className="mb-3 flex-row items-center justify-between">
+    <View style={{ marginBottom: spacing.md, gap: spacing.sm }}>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: spacing.sm,
+        }}
+      >
         <Pressable
           onPress={onBack}
           accessibilityRole="button"
           accessibilityLabel="חזרה"
-          style={{ minHeight: 44, justifyContent: 'center' }}
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: surfaces.prayerSectionChip,
+          }}
         >
-          <Text style={typography.label}>→ חזרה</Text>
+          <Text style={[typography.label, { color: colors.sacredInk }]}>→</Text>
         </Pressable>
 
-        <View className="flex-row items-center gap-2" style={{ direction: 'ltr' }}>
+        <Text
+          numberOfLines={1}
+          style={[
+            typography.subtitle,
+            prayerRtlText,
+            homeFontStyle(fontsLoaded, homeFonts.sacredBold),
+            { flex: 1, color: colors.sacredInk, fontSize: 20, lineHeight: 32 },
+          ]}
+        >
+          {title}
+        </Text>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
           <FontControlButton
-            label="A-"
+            label="א-"
             accessibilityLabel="הקטן גופן"
             onPress={onDecreaseFontSize}
             disabled={!canDecrease}
           />
-          <Text style={[typography.caption, { minWidth: 28, textAlign: 'center' }]}>
+          <Text
+            style={[
+              typography.caption,
+              homeFontStyle(fontsLoaded, homeFonts.semibold),
+              { minWidth: 24, textAlign: 'center', color: colors.sacredSlate },
+            ]}
+          >
             {fontSize}
           </Text>
           <FontControlButton
-            label="A+"
+            label="א+"
             accessibilityLabel="הגדל גופן"
             onPress={onIncreaseFontSize}
             disabled={!canIncrease}
@@ -466,32 +506,18 @@ function ReaderHeader({
         </View>
       </View>
 
-      <View style={prayerRtlContainer}>
+      {nusachLabel ? (
         <Text
           style={[
-            typography.title,
+            typography.caption,
             prayerRtlBlock,
-            {
-              fontSize: 28,
-              lineHeight: 36,
-              color: colors.text,
-            },
+            homeFontStyle(fontsLoaded, homeFonts.semibold),
+            { color: colors.sacredAmber },
           ]}
         >
-          {title}
+          {nusachLabel}
         </Text>
-        {nusachLabel ? (
-          <Text
-            style={[
-              typography.bodySmall,
-              prayerRtlBlock,
-              { marginTop: 6, color: colors.secondary },
-            ]}
-          >
-            {nusachLabel}
-          </Text>
-        ) : null}
-      </View>
+      ) : null}
     </View>
   );
 }
@@ -515,146 +541,20 @@ function FontControlButton({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      className="rounded-full px-3 py-2"
       style={{
         backgroundColor: surfaces.prayerSectionChip,
-        minWidth: 44,
-        minHeight: 44,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
         opacity: disabled ? 0.45 : 1,
       }}
     >
-      <Text style={[typography.label, { fontSize: 16 }]}>{label}</Text>
+      <Text style={[typography.label, { fontSize: 14, color: colors.sacredInk }]}>
+        {label}
+      </Text>
     </Pressable>
-  );
-}
-
-interface NusachAvailabilityRowProps {
-  items: ReturnType<typeof listAvailableNusachimWithStatus>;
-  currentNusach: RootStackParamList['PrayerReader']['nusach'];
-}
-
-function NusachAvailabilityRow({
-  items,
-  currentNusach,
-}: NusachAvailabilityRowProps) {
-  return (
-    <View className="mb-4" style={prayerRtlContainer}>
-      {items.map(({ nusach, available }) => {
-        const isCurrent = nusach === currentNusach;
-        const label = available
-          ? `${NUSACH_LABELS[nusach]}${isCurrent ? ' ✓' : ''}`
-          : `${NUSACH_LABELS[nusach]} — בקרוב`;
-
-        return (
-          <Text
-            key={nusach}
-            style={[
-              typography.caption,
-              prayerRtlBlock,
-              {
-                color: available ? colors.text : colors.muted,
-                marginBottom: 4,
-              },
-            ]}
-          >
-            {label}
-          </Text>
-        );
-      })}
-    </View>
-  );
-}
-
-interface SectionNavigatorProps {
-  sections: Array<{ id: string; title: string; isConditional?: boolean }>;
-  activeSectionId: string | null;
-  onSelectSection: (sectionId: string) => void;
-  onOpenTableOfContents?: () => void;
-}
-
-function SectionNavigator({
-  sections,
-  activeSectionId,
-  onSelectSection,
-  onOpenTableOfContents,
-}: SectionNavigatorProps) {
-  return (
-    <View className="mb-3">
-      {onOpenTableOfContents ? (
-        <View className="mb-2 flex-row items-center justify-between">
-          <Pressable
-            onPress={onOpenTableOfContents}
-            accessibilityRole="button"
-            accessibilityLabel="קפיצה לסעיף"
-            className="rounded-full px-4 py-2"
-            style={{
-              backgroundColor: surfaces.prayerSectionChip,
-              minHeight: 36,
-              justifyContent: 'center',
-            }}
-          >
-            <Text style={[typography.label, prayerRtlText]}>קפיצה לסעיף</Text>
-          </Pressable>
-          <Text
-            style={[
-              typography.caption,
-              prayerRtlText,
-              { color: colors.secondary, flexShrink: 1 },
-            ]}
-          >
-            ניווט לפי מבנה הסידור
-          </Text>
-        </View>
-      ) : null}
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          flexDirection: 'row-reverse',
-          gap: spacing.sm,
-          paddingBottom: spacing.sm,
-        }}
-      >
-        {sections.map((section) => {
-          const isActive = section.id === activeSectionId;
-
-          return (
-            <Pressable
-              key={section.id}
-              onPress={() => onSelectSection(section.id)}
-              accessibilityRole="button"
-              accessibilityLabel={`עבור ל${section.title}`}
-              className="rounded-full px-4 py-2"
-              style={{
-                backgroundColor: isActive ? colors.primary : surfaces.prayerSectionChip,
-                borderWidth: section.isConditional && !isActive ? 1 : 0,
-                borderColor: surfaces.prayerSectionConditionalBorder,
-                minHeight: 40,
-                justifyContent: 'center',
-                flexShrink: 1,
-                maxWidth: SECTION_CHIP_MAX_WIDTH,
-              }}
-            >
-              <Text
-                style={[
-                  typography.label,
-                  prayerRtlText,
-                  {
-                    color: isActive ? colors.white : colors.text,
-                    flexShrink: 1,
-                  },
-                ]}
-              >
-                {section.title}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-    </View>
   );
 }
 
@@ -816,7 +716,7 @@ function ResumeBanner({ onResume, onDismiss }: ResumeBannerProps) {
           accessibilityRole="button"
           accessibilityLabel="המשך מהמקום האחרון"
           className="rounded-xl px-4 py-2"
-          style={{ backgroundColor: colors.primary, minHeight: 40 }}
+          style={{ backgroundColor: colors.sacredNavy, minHeight: 40 }}
         >
           <Text style={[typography.label, { color: colors.white }]}>המשך</Text>
         </Pressable>
@@ -834,321 +734,3 @@ function ResumeBanner({ onResume, onDismiss }: ResumeBannerProps) {
   );
 }
 
-interface PrayerSectionBlockProps {
-  section: EnrichedPrayerSection;
-  isLast: boolean;
-  fontSize: PrayerFontSize;
-  lineHeight: number;
-  paragraphSpacing: number;
-  sectionSpacing: number;
-  onLayout: (y: number) => void;
-}
-
-function PrayerSectionBlock({
-  section,
-  isLast,
-  fontSize,
-  lineHeight,
-  paragraphSpacing,
-  sectionSpacing,
-  onLayout,
-}: PrayerSectionBlockProps) {
-  const isConditional = section.availability !== 'always';
-  const showConditionalState = isConditional && !section.applicableToday;
-  const isMajorSection = isMajorPrayerSurfaceSection(section.id);
-  const showMajorSurface = isMajorSection && !showConditionalState;
-
-  return (
-    <View
-      onLayout={(event) => onLayout(event.nativeEvent.layout.y)}
-      style={{
-        ...prayerRtlContainer,
-        marginBottom: isLast ? 0 : sectionSpacing,
-        marginTop: showMajorSurface ? spacing.sm : 0,
-        paddingTop: showMajorSurface ? spacing.md : spacing.sm,
-        paddingBottom: showMajorSurface
-          ? spacing.md
-          : isConditional
-            ? spacing.md
-            : spacing.sm,
-        paddingHorizontal: showMajorSurface
-          ? spacing.md
-          : isConditional
-            ? spacing.sm
-            : 0,
-        borderRadius: showMajorSurface
-          ? borderRadius.lg
-          : isConditional
-            ? borderRadius.md
-            : 0,
-        backgroundColor: showConditionalState
-          ? surfaces.prayerSectionConditional
-          : showMajorSurface
-            ? surfaces.prayerSectionSurface
-            : 'transparent',
-        borderWidth: isConditional ? 1 : 0,
-        borderColor: showConditionalState
-          ? surfaces.prayerSectionConditionalBorder
-          : 'transparent',
-      }}
-    >
-      <View className="mb-4" style={prayerRtlContainer}>
-        <Text
-          accessibilityRole="header"
-          style={{
-            ...prayerRtlBlock,
-            color: colors.text,
-            fontSize: showMajorSurface
-              ? Math.max(22, fontSize + 2)
-              : Math.max(20, fontSize),
-            lineHeight: Math.round(
-              (showMajorSurface ? Math.max(22, fontSize + 2) : Math.max(20, fontSize)) *
-                1.35,
-            ),
-            fontWeight: showMajorSurface ? '700' : '600',
-          }}
-        >
-          {section.title}
-        </Text>
-
-        {section.availabilityLabel ? (
-          <Text
-            style={[
-              typography.caption,
-              prayerRtlBlock,
-              {
-                color: colors.accent,
-                marginTop: 4,
-              },
-            ]}
-          >
-            {section.availabilityLabel}
-          </Text>
-        ) : null}
-
-        {section.availabilityNote ? (
-          <Text
-            style={[
-              typography.caption,
-              prayerRtlBlock,
-              {
-                color: colors.secondary,
-                marginTop: 4,
-              },
-            ]}
-          >
-            {section.availabilityNote}
-          </Text>
-        ) : null}
-      </View>
-
-      {section.text.map((paragraph, index) => (
-        <Text
-          key={`${section.id}-${index}`}
-          accessibilityRole="text"
-          style={{
-            ...prayerRtlBlock,
-            fontSize,
-            lineHeight,
-            color: colors.text,
-            fontWeight: '400',
-            marginBottom:
-              index === section.text.length - 1 ? 0 : paragraphSpacing,
-          }}
-        >
-          {paragraph}
-        </Text>
-      ))}
-    </View>
-  );
-}
-
-interface RitualGuideSectionBlockProps {
-  section: RitualGuideSection;
-  stepNumber: number | null;
-  isLast: boolean;
-  fontSize: PrayerFontSize;
-  lineHeight: number;
-  paragraphSpacing: number;
-  sectionSpacing: number;
-  onLayout: (y: number) => void;
-}
-
-function getRitualKindLabel(kind: RitualGuideSectionKind): string | null {
-  switch (kind) {
-    case 'action':
-      return 'פעולה';
-    case 'blessing':
-      return 'ברכה';
-    case 'instruction':
-      return 'הסבר';
-    case 'step':
-      return 'שלב';
-    default:
-      return null;
-  }
-}
-
-function RitualGuideSectionBlock({
-  section,
-  stepNumber,
-  isLast,
-  fontSize,
-  lineHeight,
-  paragraphSpacing,
-  sectionSpacing,
-  onLayout,
-}: RitualGuideSectionBlockProps) {
-  const instructionFontSize = Math.max(16, fontSize - 2);
-  const kindLabel = getRitualKindLabel(section.kind);
-
-  return (
-    <View
-      onLayout={(event) => onLayout(event.nativeEvent.layout.y)}
-      style={{ ...prayerRtlContainer, marginBottom: isLast ? 0 : sectionSpacing }}
-    >
-      <View className="mb-3 flex-row items-start gap-3">
-        {stepNumber != null ? (
-          <View
-            className="items-center justify-center rounded-full"
-            style={{
-              width: 44,
-              height: 44,
-              backgroundColor: colors.primary,
-            }}
-          >
-            <Text style={[typography.label, { color: colors.white, fontSize: 18 }]}>
-              {stepNumber}
-            </Text>
-          </View>
-        ) : null}
-        <View className="flex-1" style={prayerRtlContainer}>
-          {kindLabel ? (
-            <View
-              className="mb-1 self-start rounded-full px-3 py-1"
-              style={{
-                backgroundColor: surfaces.prayerSectionChip,
-                flexShrink: 1,
-                maxWidth: '100%',
-              }}
-            >
-              <Text
-                style={[
-                  typography.caption,
-                  prayerRtlText,
-                  {
-                    color: colors.secondary,
-                    flexShrink: 1,
-                  },
-                ]}
-              >
-                {kindLabel}
-              </Text>
-            </View>
-          ) : null}
-          <Text
-            accessibilityRole="header"
-            style={[
-              typography.subtitle,
-              prayerRtlBlock,
-              {
-                color: colors.secondary,
-                fontSize: Math.max(18, fontSize - 2),
-              },
-            ]}
-          >
-            {section.title}
-          </Text>
-        </View>
-      </View>
-
-      {section.instruction ? (
-        <View
-          className="mb-3 rounded-2xl px-3 py-3"
-          style={{
-            ...prayerRtlContainer,
-            backgroundColor: surfaces.prayerSectionChip,
-          }}
-        >
-          <View
-            className="mb-2 self-start rounded-full px-3 py-1"
-            style={{ backgroundColor: surfaces.prayerSectionConditional, flexShrink: 1 }}
-          >
-            <Text
-              style={[
-                typography.caption,
-                prayerRtlText,
-                { color: colors.secondary, flexShrink: 1 },
-              ]}
-            >
-              {section.kind === 'instruction' ? 'הסבר' : 'פעולה'}
-            </Text>
-          </View>
-          <Text
-            accessibilityRole="text"
-            style={{
-              ...prayerRtlBlock,
-              fontSize: instructionFontSize,
-              lineHeight: Math.round(instructionFontSize * 1.55),
-              color:
-                section.kind === 'instruction'
-                  ? RITUAL_INSTRUCTION_COLOR
-                  : RITUAL_ACTION_COLOR,
-            }}
-          >
-            {section.instruction}
-          </Text>
-        </View>
-      ) : null}
-
-      {section.text.map((paragraph, index) => {
-        const paragraphIsBlessing =
-          section.kind === 'blessing' || paragraph.trim().startsWith('בָּרוּךְ');
-
-        return (
-          <View
-            key={`${section.id}-${index}`}
-            style={{
-              marginBottom:
-                index === section.text.length - 1 ? 0 : paragraphSpacing,
-            }}
-          >
-            {paragraphIsBlessing ? (
-              <View
-                className="mb-2 self-start rounded-full px-3 py-1"
-                style={{
-                  backgroundColor: surfaces.prayerSectionChip,
-                  flexShrink: 1,
-                }}
-              >
-                <Text
-                  style={[
-                    typography.caption,
-                    prayerRtlText,
-                    { color: colors.secondary, flexShrink: 1 },
-                  ]}
-                >
-                  ברכה
-                </Text>
-              </View>
-            ) : null}
-            <Text
-              accessibilityRole="text"
-              style={{
-                ...prayerRtlBlock,
-                fontSize: paragraphIsBlessing ? fontSize + 1 : fontSize,
-                lineHeight: paragraphIsBlessing
-                  ? lineHeight
-                  : Math.round(instructionFontSize * 1.55),
-                color: paragraphIsBlessing ? RITUAL_BLESSING_COLOR : colors.text,
-                fontWeight: paragraphIsBlessing ? '500' : '400',
-              }}
-            >
-              {paragraph}
-            </Text>
-          </View>
-        );
-      })}
-    </View>
-  );
-}

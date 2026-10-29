@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   editLabel: {
-    color: homeTheme.primary,
+    color: colors.sacredAmber,
   },
   pressed: {
     opacity: 0.88,

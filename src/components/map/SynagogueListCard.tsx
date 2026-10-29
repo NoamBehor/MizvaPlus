@@ -1,4 +1,10 @@
-import { Pressable, Text, View } from 'react-native';
+import { useRef } from 'react';
+import {
+  Pressable,
+  Text,
+  View,
+  type GestureResponderEvent,
+} from 'react-native';
 
 import { colors } from '@/constants/colors';
 import { MINYAN_REQUIRED_COUNT } from '@/constants/minyanLive';
@@ -7,6 +13,9 @@ import type { ActiveMinyanReport } from '@/services/minyanLive/minyanLiveTypes';
 import type { Synagogue } from '@/types/synagogue';
 import { formatDistanceMeters } from '@/utils/distance';
 import { synagogueNeedsMinyan } from '@/utils/mapSynagogues';
+
+/** Finger travel that belongs to a scroll, not a tap. */
+const SCROLL_PRESS_SLOP = 10;
 
 interface SynagogueListCardProps {
   synagogue: Synagogue;
@@ -28,10 +37,38 @@ export function SynagogueListCard({
       ? formatDistanceMeters(synagogue.distanceMeters)
       : null;
   const needsMinyan = synagogueNeedsMinyan(minyan);
+  const pressOriginRef = useRef({ x: 0, y: 0 });
+  const pressMovedRef = useRef(false);
+
+  const rememberPressOrigin = (event: GestureResponderEvent) => {
+    pressMovedRef.current = false;
+    pressOriginRef.current = {
+      x: event.nativeEvent.pageX,
+      y: event.nativeEvent.pageY,
+    };
+  };
+
+  const rememberPressTravel = (event: GestureResponderEvent) => {
+    const dx = event.nativeEvent.pageX - pressOriginRef.current.x;
+    const dy = event.nativeEvent.pageY - pressOriginRef.current.y;
+    if (dx * dx + dy * dy > SCROLL_PRESS_SLOP * SCROLL_PRESS_SLOP) {
+      pressMovedRef.current = true;
+    }
+  };
+
+  const handlePress = () => {
+    if (pressMovedRef.current) {
+      return;
+    }
+    onPress(synagogue);
+  };
 
   return (
     <Pressable
-      onPress={() => onPress(synagogue)}
+      onPress={handlePress}
+      onPressIn={rememberPressOrigin}
+      onPressOut={rememberPressTravel}
+      onTouchMove={rememberPressTravel}
       accessibilityRole="button"
       accessibilityLabel={`${rank ? `מקום ${rank}, ` : ''}${synagogue.name}${distanceLabel ? `, ${distanceLabel}` : ''}`}
       accessibilityState={{ selected }}

@@ -12,6 +12,7 @@ interface ExplanationHeroProps {
   icon: string;
   title: string;
   description: string;
+  nextOccasionDate: { hebrew: string; gregorian: string } | null;
   xpReward: number;
   timing: string[];
   status: MitzvahExplanationStatus | null;
@@ -21,6 +22,7 @@ export function ExplanationHero({
   icon,
   title,
   description,
+  nextOccasionDate,
   xpReward,
   timing,
   status,
@@ -59,6 +61,28 @@ export function ExplanationHero({
               >
                 {description}
               </Text>
+              {nextOccasionDate ? (
+                <View style={styles.nextDateBlock} accessibilityRole="text">
+                  <Text
+                    style={[
+                      typography.bodySmall,
+                      homeFontStyle(fontsLoaded, homeFonts.semibold),
+                      styles.nextDateHebrew,
+                    ]}
+                  >
+                    {nextOccasionDate.hebrew}
+                  </Text>
+                  <Text
+                    style={[
+                      typography.caption,
+                      homeFontStyle(fontsLoaded, homeFonts.regular),
+                      styles.nextDateGregorian,
+                    ]}
+                  >
+                    {nextOccasionDate.gregorian}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <View
               accessibilityElementsHidden
@@ -165,6 +189,21 @@ const styles = StyleSheet.create({
   description: {
     marginTop: spacing.sm,
     color: 'rgba(255, 255, 255, 0.86)',
+  },
+  nextDateBlock: {
+    marginTop: spacing.sm,
+    alignItems: 'flex-start',
+    gap: 2,
+  },
+  nextDateHebrew: {
+    color: colors.white,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
+  nextDateGregorian: {
+    color: 'rgba(255, 255, 255, 0.78)',
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
   iconTile: {
     width: 64,

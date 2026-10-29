@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 
 import { ScreenContainer } from '@/components/common/ScreenContainer';
 import { DevLocationSection } from '@/components/dev/DevLocationSection';
+import { DevMitzvahExplanationSection } from '@/components/dev/DevMitzvahExplanationSection';
 import { colors } from '@/constants/colors';
 import { typography } from '@/constants/theme';
 import {
@@ -262,6 +263,8 @@ export function DiagnosticsScreen() {
           {copyStatus}
         </Text>
       ) : null}
+
+      <DevMitzvahExplanationSection />
 
       <Section title="Authentication">
         <MonoLine label="Auth mode" value={authDiagnostics.authenticationMode} />

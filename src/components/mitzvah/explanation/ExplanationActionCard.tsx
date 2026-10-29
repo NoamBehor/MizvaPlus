@@ -40,7 +40,7 @@ export function ExplanationActionCard({
         >
           {({ pressed }) => (
           <LinearGradient
-            colors={[homeTheme.primary, colors.navyMid]}
+            colors={[colors.sacredNavy, colors.navy]}
             start={{ x: 1, y: 0 }}
             end={{ x: 0, y: 0 }}
             style={[styles.button, pressed && styles.pressed]}
@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   secondaryLabel: {
-    color: homeTheme.primary,
+    color: colors.sacredAmber,
   },
   pending: {
     color: homeTheme.goldDeep,

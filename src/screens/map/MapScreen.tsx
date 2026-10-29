@@ -56,8 +56,7 @@ export function MapScreen() {
   const [isManualRefreshing, setIsManualRefreshing] = useState(false);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const { scrollPaddingBottom } = useScrollBottomInset();
-  const { expandedHeight, onScroll, expandMap, mapWrapperStyle, legendStyle } =
-    useCollapsingMapHeight();
+  const { onScroll, mapWrapperStyle, legendStyle } = useCollapsingMapHeight();
 
   const {
     location,
@@ -232,7 +231,6 @@ export function MapScreen() {
     (synagogue: Synagogue) => {
       setSelectedSynagogueId(synagogue.id);
       scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-      expandMap();
       mapRef.current?.animateToRegion(
         {
           latitude: synagogue.coordinates.latitude,
@@ -243,7 +241,7 @@ export function MapScreen() {
         350,
       );
     },
-    [expandMap],
+    [],
   );
 
   const handleMarkerPress = useCallback((synagogue: Synagogue) => {
@@ -419,11 +417,7 @@ export function MapScreen() {
 
       {showMap && initialRegion ? (
         <View className="flex-1">
-          <Animated.View style={mapWrapperStyle}>
-            <View
-              collapsable={false}
-              style={{ height: expandedHeight, width: '100%' }}
-            >
+          <Animated.View collapsable={false} style={mapWrapperStyle}>
               {androidMapsKeyMissing ? (
                 <MapStatePanel
                   title="לא ניתן להציג את המפה"
@@ -432,7 +426,7 @@ export function MapScreen() {
               ) : (
                 <MapView
                   ref={mapRef}
-                  style={{ width: '100%', height: expandedHeight }}
+                  style={{ width: '100%', height: '100%' }}
                   provider={
                     Platform.OS === 'android' ? PROVIDER_GOOGLE : undefined
                   }
@@ -517,7 +511,6 @@ export function MapScreen() {
                   © OpenStreetMap contributors
                 </Text>
               </View>
-            </View>
           </Animated.View>
 
           <Animated.ScrollView

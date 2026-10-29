@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppState, Platform, Pressable, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors } from '@/constants/colors';
-import { typography, surfaces } from '@/constants/theme';
+import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
+import { homeFonts } from '@/constants/homeTheme';
+import { borderRadius, spacing, typography } from '@/constants/theme';
 import {
   getAsyncPlaybackState,
   pauseSpeaking,
@@ -15,11 +18,15 @@ import {
 
 interface PrayerReaderAudioControlsProps {
   content: string;
+  title?: string;
 }
 
 export function PrayerReaderAudioControls({
   content,
+  title,
 }: PrayerReaderAudioControlsProps) {
+  const insets = useSafeAreaInsets();
+  const fontsLoaded = useHomeFonts();
   const [playbackState, setPlaybackState] =
     useState<AudioPlaybackState>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -95,40 +102,70 @@ export function PrayerReaderAudioControls({
 
   return (
     <View
-      className="border-t border-border px-4 py-3"
       style={{
-        backgroundColor: surfaces.prayerReaderBackground,
-        borderTopColor: colors.border,
+        backgroundColor: colors.sacredNavy,
+        borderTopLeftRadius: borderRadius.lg,
+        borderTopRightRadius: borderRadius.lg,
+        paddingHorizontal: spacing.md,
+        paddingTop: spacing.sm,
+        paddingBottom: spacing.sm + insets.bottom,
       }}
     >
+      {title ? (
+        <Text
+          numberOfLines={1}
+          style={[
+            typography.caption,
+            homeFontStyle(fontsLoaded, homeFonts.semibold),
+            {
+              color: colors.sacredAmberBorder,
+              textAlign: 'right',
+              writingDirection: 'rtl',
+              marginBottom: spacing.xs,
+            },
+          ]}
+        >
+          {title}
+        </Text>
+      ) : null}
+
       {isWebPreview ? (
         <Text
           style={[
             typography.caption,
-            { color: colors.muted, textAlign: 'center', marginBottom: 8 },
+            homeFontStyle(fontsLoaded, homeFonts.regular),
+            { color: colors.sacredLine, textAlign: 'center', marginBottom: 8 },
           ]}
         >
           השמעה זמינה באפליקציה בנייד
         </Text>
       ) : null}
 
-      <View className="flex-row items-center gap-3" style={{ width: '100%' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
         <Pressable
           onPress={handleStop}
           disabled={!hasContent || isWebPreview}
           accessibilityRole="button"
           accessibilityLabel="עצור השמעה"
-          className="rounded-xl px-4 py-3"
           style={{
-            backgroundColor: colors.border,
+            backgroundColor: 'rgba(255,255,255,0.12)',
             minHeight: 44,
             minWidth: 72,
+            borderRadius: borderRadius.md,
             alignItems: 'center',
             justifyContent: 'center',
             opacity: !hasContent || isWebPreview ? 0.5 : 1,
           }}
         >
-          <Text style={typography.label}>■ עצור</Text>
+          <Text
+            style={[
+              typography.label,
+              homeFontStyle(fontsLoaded, homeFonts.semibold),
+              { color: colors.white },
+            ]}
+          >
+            ■ עצור
+          </Text>
         </Pressable>
 
         {showPauseControl ? (
@@ -136,16 +173,22 @@ export function PrayerReaderAudioControls({
             onPress={handlePause}
             accessibilityRole="button"
             accessibilityLabel="השהה השמעה"
-            className="rounded-xl px-4 py-3"
             style={{
-              backgroundColor: colors.secondary,
+              backgroundColor: colors.sacredAmber,
               minHeight: 44,
               minWidth: 72,
+              borderRadius: borderRadius.md,
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            <Text style={[typography.label, { color: colors.white }]}>
+            <Text
+              style={[
+                typography.label,
+                homeFontStyle(fontsLoaded, homeFonts.semibold),
+                { color: colors.white },
+              ]}
+            >
               ⏸ השהה
             </Text>
           </Pressable>
@@ -158,17 +201,23 @@ export function PrayerReaderAudioControls({
           accessibilityLabel={
             isPaused ? 'המשך השמעה' : isSpeaking ? 'עצור והתחל מחדש' : 'השמע'
           }
-          className="rounded-xl px-4 py-3"
           style={{
-            backgroundColor: colors.accent,
+            backgroundColor: colors.white,
             minHeight: 44,
             minWidth: 88,
+            borderRadius: borderRadius.md,
             alignItems: 'center',
             justifyContent: 'center',
             opacity: !hasContent || isWebPreview ? 0.5 : 1,
           }}
         >
-          <Text style={[typography.label, { color: colors.white }]}>
+          <Text
+            style={[
+              typography.label,
+              homeFontStyle(fontsLoaded, homeFonts.bold),
+              { color: colors.sacredNavy },
+            ]}
+          >
             {isPaused ? '▶ המשך' : isSpeaking ? '■ עצור' : '▶ השמע'}
           </Text>
         </Pressable>
@@ -178,7 +227,12 @@ export function PrayerReaderAudioControls({
         <Text
           style={[
             typography.caption,
-            { color: colors.muted, marginTop: 8, textAlign: 'right' },
+            {
+              color: colors.sacredAmberBorder,
+              marginTop: 8,
+              textAlign: 'right',
+              writingDirection: 'rtl',
+            },
           ]}
         >
           {errorMessage}

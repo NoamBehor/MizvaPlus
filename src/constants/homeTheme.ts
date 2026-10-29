@@ -63,4 +63,8 @@ export const homeFonts = {
   bold: 'Assistant_700',
   extrabold: 'Assistant_800',
   display: 'Rubik_700',
+  /** Recited Hebrew only. Instructional Hebrew stays on Assistant. */
+  sacred: 'NotoSerifHebrew_500',
+  sacredSemibold: 'NotoSerifHebrew_600',
+  sacredBold: 'NotoSerifHebrew_700',
 } as const;

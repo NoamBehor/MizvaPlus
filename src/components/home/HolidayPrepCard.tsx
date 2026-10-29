@@ -3,9 +3,12 @@ import { Pressable, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { Card } from '@/components/common/Card';
+import { colors } from '@/constants/colors';
+import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
+import { homeFonts } from '@/constants/homeTheme';
 import { formatContentSource } from '@/types/content';
 import { getHolidayTheme } from '@/constants/holidayThemes';
-import { borderRadius, spacing, typography } from '@/constants/theme';
+import { borderRadius, shadows, spacing, surfaces, typography } from '@/constants/theme';
 import { getHolidayGuide } from '@/services/holidayGuideService';
 import type { HolidayContext } from '@/services/holidayContext';
 import type { HolidayGuideSection } from '@/types/holidayGuide';
@@ -33,7 +36,17 @@ function renderTipList(
   }
 
   return (
-    <View style={{ marginTop: spacing.md }}>
+    <View
+      style={{
+        marginTop: spacing.md,
+        backgroundColor: surfaces.prayerInstruction,
+        borderColor: surfaces.prayerInstructionBorder,
+        borderWidth: 1,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        ...shadows.sacredCard,
+      }}
+    >
       <Text
         style={[
           typography.label,
@@ -82,7 +95,18 @@ function renderSection(
   labelColor: string,
 ) {
   return (
-    <View key={sectionData.id} style={{ marginTop: spacing.md }}>
+    <View
+      key={sectionData.id}
+      style={{
+        marginTop: spacing.md,
+        backgroundColor: surfaces.prayerActionSurface,
+        borderColor: surfaces.prayerActionBorder,
+        borderWidth: 1,
+        borderRadius: borderRadius.lg,
+        padding: spacing.md,
+        ...shadows.sacredCard,
+      }}
+    >
       <Text
         style={[
           typography.label,
@@ -138,6 +162,7 @@ export function HolidayPrepCard({
   const effectiveHolidayKey = overrideHolidayKey ?? context.holidayKey;
   const guide = effectiveHolidayKey ? getHolidayGuide(effectiveHolidayKey) : null;
   const theme = getHolidayTheme(guide?.themeKey ?? context.themeKey);
+  const fontsLoaded = useHomeFonts();
 
   useEffect(() => {
     setExpanded(initialExpanded);
@@ -214,6 +239,7 @@ export function HolidayPrepCard({
             <Text
               style={[
                 typography.subtitle,
+                homeFontStyle(fontsLoaded, homeFonts.sacredBold),
                 { color: theme.textColor, textAlign: 'right' },
               ]}
             >
@@ -290,47 +316,56 @@ export function HolidayPrepCard({
             style={{
               marginTop: spacing.md,
               borderRadius: borderRadius.lg,
-              backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              backgroundColor: colors.sacredCanvas,
               padding: spacing.sm,
             }}
           >
-            {renderSection(guide.overview, theme.textColor, theme.labelColor)}
+            {renderSection(guide.overview, colors.sacredInk, colors.sacredSlate)}
             {guide.preparation.map((sectionData) =>
-              renderSection(sectionData, theme.textColor, theme.labelColor),
+              renderSection(sectionData, colors.sacredInk, colors.sacredSlate),
             )}
             {guide.mitzvot.map((sectionData) =>
-              renderSection(sectionData, theme.textColor, theme.labelColor),
+              renderSection(sectionData, colors.sacredInk, colors.sacredSlate),
             )}
             {guide.prayers?.map((sectionData) =>
-              renderSection(sectionData, theme.textColor, theme.labelColor),
+              renderSection(sectionData, colors.sacredInk, colors.sacredSlate),
             )}
 
             {renderTipList(
               'טיפים מעשיים',
               guide.practicalTips,
-              theme.textColor,
-              theme.labelColor,
+              colors.sacredAmberText,
+              colors.sacredSlate,
             )}
 
             {renderTipList(
               'טיפים למשפחה',
               guide.familyTips ?? [],
-              theme.textColor,
-              theme.labelColor,
+              colors.sacredAmberText,
+              colors.sacredSlate,
             )}
 
             {renderTipList(
               'טעויות נפוצות',
               guide.commonMistakes ?? [],
-              theme.textColor,
-              theme.labelColor,
+              colors.sacredAmberText,
+              colors.sacredSlate,
             )}
 
-            <View style={{ marginTop: spacing.md }}>
+            <View
+              style={{
+                marginTop: spacing.md,
+                backgroundColor: surfaces.prayerActionSurface,
+                borderColor: surfaces.prayerActionBorder,
+                borderWidth: 1,
+                borderRadius: borderRadius.lg,
+                padding: spacing.md,
+              }}
+            >
               <Text
                 style={[
                   typography.label,
-                  { color: theme.textColor, textAlign: 'right', fontWeight: '600' },
+                  { color: colors.sacredInk, textAlign: 'right', fontWeight: '600' },
                 ]}
               >
                 רשימת הכנה
@@ -343,7 +378,7 @@ export function HolidayPrepCard({
                     {
                       marginTop: spacing.xs,
                       textAlign: 'right',
-                      color: theme.textColor,
+                      color: colors.sacredInk,
                     },
                   ]}
                 >
@@ -353,11 +388,20 @@ export function HolidayPrepCard({
             </View>
 
             {guide.commonQuestions && guide.commonQuestions.length > 0 ? (
-              <View style={{ marginTop: spacing.md }}>
+              <View
+                style={{
+                  marginTop: spacing.md,
+                  backgroundColor: surfaces.prayerActionSurface,
+                  borderColor: surfaces.prayerActionBorder,
+                  borderWidth: 1,
+                  borderRadius: borderRadius.lg,
+                  padding: spacing.md,
+                }}
+              >
                 <Text
                   style={[
                     typography.label,
-                    { color: theme.textColor, textAlign: 'right', fontWeight: '600' },
+                    { color: colors.sacredInk, textAlign: 'right', fontWeight: '600' },
                   ]}
                 >
                   שאלות נפוצות
@@ -367,7 +411,7 @@ export function HolidayPrepCard({
                     <Text
                       style={[
                         typography.bodySmall,
-                        { color: theme.textColor, textAlign: 'right', fontWeight: '600' },
+                        { color: colors.sacredInk, textAlign: 'right', fontWeight: '600' },
                       ]}
                     >
                       {entry.questionHebrew}
@@ -375,7 +419,7 @@ export function HolidayPrepCard({
                     <Text
                       style={[
                         typography.bodySmall,
-                        { color: theme.labelColor, textAlign: 'right', marginTop: 2 },
+                        { color: colors.sacredSlate, textAlign: 'right', marginTop: 2 },
                       ]}
                     >
                       {entry.answerHebrew}
@@ -390,7 +434,7 @@ export function HolidayPrepCard({
                 <Text
                   style={[
                     typography.caption,
-                    { color: theme.labelColor, textAlign: 'right' },
+                    { color: colors.sacredSlate, textAlign: 'right' },
                   ]}
                 >
                   מקורות:{' '}

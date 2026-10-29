@@ -1,9 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { AppIcon } from '@/components/common/AppIcon';
+import { colors } from '@/constants/colors';
 import { homeFontStyle, useHomeFonts } from '@/constants/homeFonts';
 import { homeFonts, homeTheme } from '@/constants/homeTheme';
-import { spacing, typography } from '@/constants/theme';
+import { spacing, surfaces, typography } from '@/constants/theme';
 
 interface ExplanationEssenceCardProps {
   body: string;
@@ -19,7 +20,7 @@ export function ExplanationEssenceCard({ body }: ExplanationEssenceCardProps) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <AppIcon name="info" size={18} color={homeTheme.primary} />
+        <AppIcon name="info" size={18} color={colors.sacredAmber} />
         <Text
           style={[
             typography.label,
@@ -45,10 +46,10 @@ export function ExplanationEssenceCard({ body }: ExplanationEssenceCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: homeTheme.surface,
+    backgroundColor: surfaces.prayerInstruction,
     borderRadius: homeTheme.cardRadius,
     borderWidth: 1,
-    borderColor: 'rgba(226, 232, 240, 0.9)',
+    borderColor: surfaces.prayerInstructionBorder,
     padding: spacing.md,
     marginBottom: homeTheme.sectionGap,
     ...homeTheme.cardShadow,
@@ -60,11 +61,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   heading: {
-    color: homeTheme.primary,
+    color: colors.sacredAmber,
     flexShrink: 1,
   },
   body: {
-    color: homeTheme.text,
+    color: colors.sacredAmberText,
     lineHeight: 22,
   },
 });

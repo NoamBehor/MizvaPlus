@@ -43,6 +43,11 @@ export interface MitzvahExplanationStatus {
   active: boolean;
 }
 
+export interface MitzvahExplanationOccasionDate {
+  hebrew: string;
+  gregorian: string;
+}
+
 export interface MitzvahExplanationView {
   icon: string;
   title: string;
@@ -62,6 +67,7 @@ export interface MitzvahExplanationView {
   reminderTimeLabel: string | null;
   reminderPickerValue: string;
   preferenceReady: boolean;
+  nextOccasionDate: MitzvahExplanationOccasionDate | null;
 }
 
 export interface BuildMitzvahExplanationInput {
@@ -86,6 +92,7 @@ export interface BuildMitzvahExplanationInput {
     key: string;
     titleHebrew: string;
   } | null;
+  nextOccasionDate?: MitzvahExplanationOccasionDate | null;
 }
 
 export function splitMitzvahParagraphs(text: string): string[] {
@@ -139,12 +146,19 @@ function buildActions(input: BuildMitzvahExplanationInput): ExplanationActionIte
   }
 
   if (prayer.canOpen && prayer.prayerId) {
-    const label = prayer.isPartial
-      ? 'פתח את סדר התפילה'
-      : 'פתח את סדר התפילה המלא';
+    const isMorningShemaExcerpt = prayer.prayerId === 'kriat-shema';
+    const label = isMorningShemaExcerpt
+      ? 'פתח את קריאת שמע של שחרית'
+      : prayer.isPartial
+        ? 'פתח את סדר התפילה'
+        : 'פתח את סדר התפילה המלא';
     actions.push({
       label,
-      subtitle: prayer.isPartial ? 'תוכן חלקי' : undefined,
+      subtitle: isMorningShemaExcerpt
+        ? 'קטע לחול בבוקר — לא קריאת שמע של ערבית'
+        : prayer.isPartial
+          ? 'תוכן חלקי'
+          : undefined,
       accessibilityLabel: label,
       navigation: {
         kind: 'prayer',
@@ -181,6 +195,10 @@ function buildTiming(
       lines.push(`סיום הצום: ${fastContext.endTime}`);
     }
     return lines;
+  }
+
+  if (mitzvah.category !== 'daily') {
+    return [];
   }
 
   if (preference?.reminderEnabled && preference.reminderTime) {
@@ -238,5 +256,6 @@ export function buildMitzvahExplanationView(
     reminderPickerValue:
       preference?.reminderTime ?? mitzvah.defaultTime ?? DEFAULT_REMINDER_TIME,
     preferenceReady: preference != null,
+    nextOccasionDate: input.nextOccasionDate ?? null,
   };
 }

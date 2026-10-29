@@ -227,6 +227,11 @@ function main() {
     typesSrc.includes('DeveloperDiagnostics'),
   );
 
+  record(
+    'Diagnostics imports mitzvah explanation dev section',
+    screenSrc.includes('DevMitzvahExplanationSection'),
+  );
+
   const trace42804 = recordRpcTrace(
     'create_minyan_report',
     1000,

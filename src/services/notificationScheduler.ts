@@ -1,4 +1,9 @@
 import { calendarService } from '@/services/calendar';
+import {
+  getOccasionReminderContext,
+  getSunsetIsoForDateKey,
+} from '@/services/calendar/hebcalProvider';
+import { planCalendarMitzvahReminders } from '@/services/calendarMitzvahReminders';
 import { filterEnabledActiveMitzvotForToday } from '@/services/calendarMitzvot';
 import {
   buildDailyTriggerFromTime,
@@ -17,6 +22,7 @@ import type { Mitzvah, UserMitzvahPreference } from '@/types/mitzvah';
 
 const MITZVAH_TYPE = 'mitzvah-daily';
 const CALENDAR_TYPE = 'calendar-event';
+const OCCASION_LOOKAHEAD_DAYS = 400;
 
 export type NotificationSchedulerResult = {
   scheduled: string[];
@@ -51,6 +57,8 @@ export type NotificationReconcileInput = {
   preferences: Record<string, UserMitzvahPreference>;
   activeMitzvahIds: string[];
   calendarEvents: HebrewCalendarEvent[];
+  occasionEvents?: HebrewCalendarEvent[];
+  sunsetForDateKey?: (dateKey: string) => string | null;
   currentlyScheduled: string[];
   dailyTriggerFromTime: (time: string) => { hour: number; minute: number };
 };
@@ -87,19 +95,28 @@ export function isUserNotificationId(
   return identifier.startsWith(`${userId}:`);
 }
 
+function isFridayDateKey(dateKey: string): boolean {
+  const [year, month, day] = dateKey.split('-').map(Number);
+  if (!year || !month || !day) {
+    return false;
+  }
+
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay() === 5;
+}
+
 function shouldScheduleCalendarNotification(
   event: HebrewCalendarEvent,
 ): boolean {
-  if (
-    event.type === 'CANDLE_LIGHTING' ||
-    event.type === 'HAVDALAH' ||
-    event.type === 'FAST'
-  ) {
+  if (event.type === 'HAVDALAH') {
     return Boolean(event.startDate && event.startTime);
   }
 
-  if (event.type === 'HOLIDAY') {
-    return Boolean(event.startDate);
+  if (event.type === 'CANDLE_LIGHTING') {
+    return Boolean(
+      event.startDate &&
+        event.startTime &&
+        isFridayDateKey(event.dateKey),
+    );
   }
 
   return false;
@@ -111,10 +128,6 @@ function getCalendarNotificationBody(event: HebrewCalendarEvent): string {
       return 'הדלקת נרות מתקרבת';
     case 'HAVDALAH':
       return 'יציאת שבת מתקרבת';
-    case 'FAST':
-      return 'יום צום מתקרב';
-    case 'HOLIDAY':
-      return 'חג מתקרב';
     default:
       return event.titleHebrew;
   }
@@ -146,6 +159,8 @@ export function planNotificationReconcile(input: NotificationReconcileInput): {
     preferences,
     activeMitzvahIds,
     calendarEvents,
+    occasionEvents = [],
+    sunsetForDateKey = () => null,
     currentlyScheduled,
     dailyTriggerFromTime,
   } = input;
@@ -157,6 +172,10 @@ export function planNotificationReconcile(input: NotificationReconcileInput): {
 
   if (permission === 'granted') {
     for (const mitzvah of mitzvot) {
+      if (mitzvah.category !== 'daily') {
+        continue;
+      }
+
       const preference = preferences[mitzvah.id];
       if (
         !activeMitzvahIds.includes(mitzvah.id) ||
@@ -214,6 +233,33 @@ export function planNotificationReconcile(input: NotificationReconcileInput): {
           body: getCalendarNotificationBody(event),
           data: { eventId: event.id, userId, type: CALENDAR_TYPE },
           dateIso: triggerDate.toISOString(),
+        });
+      }
+    }
+
+    for (const reminder of planCalendarMitzvahReminders({
+      userId,
+      nowMs,
+      mitzvot,
+      preferences,
+      events: occasionEvents,
+      sunsetForDateKey,
+    })) {
+      desiredIds.add(reminder.identifier);
+      if (!scheduledIds.has(reminder.identifier)) {
+        scheduledIds.add(reminder.identifier);
+        toSchedule.push({
+          kind: 'date',
+          identifier: reminder.identifier,
+          title: reminder.title,
+          body: reminder.body,
+          data: {
+            holidayKey: reminder.holidayKey,
+            userId,
+            type: 'occasion-reminder',
+            offset: reminder.offset,
+          },
+          dateIso: reminder.dateIso,
         });
       }
     }
@@ -304,6 +350,7 @@ async function reconcileNotifications(
 
   let activeMitzvahIds: string[] = [];
   let calendarEvents: HebrewCalendarEvent[] = [];
+  let occasionEvents: HebrewCalendarEvent[] = [];
 
   if (permission === 'granted') {
     const dayInfo = await calendarService.getTodayInfo(location);
@@ -314,6 +361,15 @@ async function reconcileNotifications(
     );
     activeMitzvahIds = activeMitzvot.map((mitzvah) => mitzvah.id);
     calendarEvents = await calendarService.getUpcomingEvents(14, location);
+    try {
+      occasionEvents = getOccasionReminderContext(
+        new Date(),
+        OCCASION_LOOKAHEAD_DAYS,
+        location,
+      ).events;
+    } catch {
+      occasionEvents = [];
+    }
   }
 
   const plan = planNotificationReconcile({
@@ -324,6 +380,8 @@ async function reconcileNotifications(
     preferences,
     activeMitzvahIds,
     calendarEvents,
+    occasionEvents,
+    sunsetForDateKey: (dateKey) => getSunsetIsoForDateKey(dateKey, location),
     currentlyScheduled: userScheduled,
     dailyTriggerFromTime: buildDailyTriggerFromTime,
   });

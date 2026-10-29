@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   button: {
     minHeight: 52,
     borderRadius: 14,
-    backgroundColor: homeTheme.navy,
+    backgroundColor: colors.sacredNavy,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

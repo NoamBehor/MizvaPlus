@@ -16,6 +16,9 @@ export const prayerRtlContainer: ViewStyle = {
   width: '100%',
 };
 
+/** Niqqud needs about twice the font size so marks do not collide. */
+export const SACRED_LINE_HEIGHT_RATIO = 2;
+
 /**
  * Major liturgical blocks that receive elevated surface styling in the reader.
  * Small opening sections (e.g. modeh-ani) stay inline to preserve a siddur feel.

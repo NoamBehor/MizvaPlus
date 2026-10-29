@@ -304,12 +304,23 @@ export function MyMitzvotEditPanel({ userId, onClose }: MyMitzvotEditPanelProps)
       return;
     }
 
-    const needsReminderPermission = catalog.some(
-      (mitzvah) =>
+    const needsReminderPermission = catalog.some((mitzvah) => {
+      if (!draftSelection.has(mitzvah.id)) {
+        return false;
+      }
+
+      if (
+        (mitzvah.category === 'fast' || mitzvah.category === 'holiday') &&
+        !initialSelection.has(mitzvah.id)
+      ) {
+        return true;
+      }
+
+      return (
         mitzvah.category === 'daily' &&
-        draftSelection.has(mitzvah.id) &&
-        draftReminders[mitzvah.id]?.reminderEnabled,
-    );
+        draftReminders[mitzvah.id]?.reminderEnabled
+      );
+    });
 
     if (needsReminderPermission) {
       const permission = await enableNotifications();
@@ -341,6 +352,7 @@ export function MyMitzvotEditPanel({ userId, onClose }: MyMitzvotEditPanelProps)
     draftReminders,
     draftSelection,
     hasChanges,
+    initialSelection,
     isSaving,
     saveTrackedSelections,
     userId,

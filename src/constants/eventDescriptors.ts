@@ -115,6 +115,10 @@ const HOLIDAY_KEY_TO_THEME: Record<string, HolidayThemeKey> = {
   shivah_asar_btamuz: 'fast',
 };
 
+export function isFastOccasionHolidayKey(holidayKey: string): boolean {
+  return HOLIDAY_KEY_TO_THEME[holidayKey] === 'fast';
+}
+
 const MITZVAH_ID_TO_HOLIDAY_KEY: Record<string, string> = {
   'rosh-hashana': 'rosh_hashanah',
   'yom-kippur': 'yom_kippur',

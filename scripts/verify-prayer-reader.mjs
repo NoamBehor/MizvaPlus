@@ -98,6 +98,9 @@ function walkPrayerSourceFiles() {
     'src/services/texts/ritualContentService.ts',
     'src/services/texts/prayerReaderPreferences.ts',
     'src/screens/prayer/PrayerReaderScreen.tsx',
+    ...readdirSync(join(srcRoot, 'components/prayer'))
+      .filter((name) => name.endsWith('.tsx'))
+      .map((name) => `src/components/prayer/${name}`),
     'src/screens/mitzvot/MitzvahDetailScreen.tsx',
     'src/navigation/RootNavigator.tsx',
     'src/navigation/types.ts',
@@ -267,7 +270,14 @@ const preferencesSource = readSrc('services/texts/prayerReaderPreferences.ts');
 const storageSource = read('src/utils/storage.ts');
 const shacharitStructureSource = readSrc('constants/shacharitStructure.ts');
 const prayerSectionContextSource = readSrc('services/texts/prayerSectionContext.ts');
-const readerSource = readSrc('screens/prayer/PrayerReaderScreen.tsx');
+const readerSource = [
+  readSrc('screens/prayer/PrayerReaderScreen.tsx'),
+  ...readdirSync(join(srcRoot, 'components/prayer'))
+    .filter((name) => name.endsWith('.tsx'))
+    .map((name) => read(`src/components/prayer/${name}`)),
+].join('\n');
+const explanationViewSource = readSrc('utils/mitzvahExplanationView.ts');
+const mitzvahContentSource = readSrc('constants/mitzvahContent.ts');
 const navigatorSource = read('src/navigation/RootNavigator.tsx');
 const navTypesSource = read('src/navigation/types.ts');
 const detailSource = readSrc('screens/mitzvot/MitzvahDetailScreen.tsx');
@@ -596,7 +606,11 @@ record(
     readerSource.includes('prayerRtlBlock') ||
     readerSource.includes("writingDirection: 'rtl'"),
 );
-record('reader: font controls A-/A+', readerSource.includes('A-') && readerSource.includes('A+'));
+record(
+  'reader: font controls A-/A+',
+  (readerSource.includes('A-') || readerSource.includes('א-')) &&
+    (readerSource.includes('A+') || readerSource.includes('א+')),
+);
 record(
   'reader: section navigator',
   readerSource.includes('SectionNavigator') && readerSource.includes('scrollToSection'),
@@ -660,20 +674,44 @@ record('font sizes defined', typesSource.includes('[18, 20, 22, 24, 26, 28]'));
 
 record(
   'mitzvah detail: complete CTA label',
-  detailSource.includes('פתח את סדר התפילה המלא'),
+  explanationViewSource.includes('פתח את סדר התפילה המלא'),
 );
 record(
   'mitzvah detail: partial CTA label',
-  detailSource.includes("'פתח את סדר התפילה'"),
+  explanationViewSource.includes("'פתח את סדר התפילה'"),
 );
-record('mitzvah detail: partial badge', detailSource.includes('תוכן חלקי'));
+record('mitzvah detail: partial badge', explanationViewSource.includes('תוכן חלקי'));
+record(
+  'mitzvah detail: morning shema excerpt CTA',
+  explanationViewSource.includes('פתח את קריאת שמע של שחרית') &&
+    explanationViewSource.includes('לא קריאת שמע של ערבית'),
+);
 record(
   'mitzvah detail: pending message',
-  detailSource.includes('סדר התפילה המלא יהיה זמין לאחר הוספת תוכן מאומת'),
+  explanationViewSource.includes('סדר התפילה המלא יהיה זמין לאחר הוספת תוכן מאומת'),
 );
 record(
   'mitzvah detail: tefillin guide CTA',
-  detailSource.includes('פתח סדר הנחת תפילין וברכות'),
+  explanationViewSource.includes('פתח סדר הנחת תפילין וברכות'),
+);
+record(
+  'content: mincha blurb does not cite birkot hashachar',
+  !mitzvahContentSource.includes('שֶׁעָשָׂה לִי כָּל צָרְכִּי'),
+);
+for (const fastId of ['taanit-gedalia', 'asarah-btevet', 'shivah-asar-btamuz']) {
+  const blurbMatch = mitzvahContentSource.match(
+    new RegExp(`'${fastId}': \`([\\s\\S]*?)\``),
+  );
+  record(
+    `content: ${fastId} does not start the previous evening`,
+    Boolean(blurbMatch?.[1]) && !blurbMatch[1].includes('מתחיל בערב'),
+  );
+}
+record(
+  'content: tefillin parshiyot instruction does not claim four passages',
+  !tefillinDocument.sections
+    .find((section) => section.id === 'parshiot')
+    ?.instruction?.includes('ארבעת הפרשיות'),
 );
 record(
   'mitzvah detail: uses canOpenRitualGuide',

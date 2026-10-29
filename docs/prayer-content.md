@@ -108,7 +108,7 @@ To expose a prayer from a mitzvah detail screen, add the mitzvah ID to `MITZVAH_
 UI behavior is driven by catalog availability:
 
 - `complete` → CTA: `פתח את סדר התפילה המלא`
-- `partial` → CTA: `פתח את סדר התפילה` plus visible `תוכן חלקי`
+- `partial` → for קריאת שמע, CTA: `פתח את קריאת שמע של שחרית` and a note that the file is the weekday morning excerpt, not ערבית. Other partial prayers use `פתח את סדר התפילה` plus `תוכן חלקי`
 - `pending` → no reader CTA; show pending product message only
 
 ## Source attribution
@@ -179,11 +179,11 @@ npm run typecheck
 
 | Prayer ID | Availability | Sections | Path |
 |-----------|--------------|----------|------|
-| `kriat-shema` | partial | 3 | `edot-hamizrach/kriat-shema.json` (unverified provenance; from `mitzvahPrayers.ts`) |
+| `kriat-shema` | partial | 3 | `edot-hamizrach/kriat-shema.json` (verified morning excerpt, Sefaria CC0) |
 | `shacharit` | complete | 19 | `edot-hamizrach/shacharit.json` |
+| `mincha` | complete | 4 | `edot-hamizrach/mincha.json` |
+| `arvit` | complete | 4 | `edot-hamizrach/arvit.json` |
 | `tefillin` (ritual guide) | complete | 6 | `edot-hamizrach/tefillin.json` |
-| `mincha` | pending | — | not bundled |
-| `arvit` | pending | — | not bundled |
 | `birkat-hamazon` | pending | — | not bundled |
 
 ## Offline constraints
