@@ -17,6 +17,8 @@ interface ScreenContainerProps {
   backgroundColor?: string;
   horizontalPadding?: number;
   scrollRef?: RefObject<ScrollView | null>;
+  /** Fixed footer inside the phone frame, below the scroll body. */
+  footer?: ReactNode;
 }
 
 export function ScreenContainer({
@@ -27,9 +29,13 @@ export function ScreenContainer({
   backgroundColor = colors.background,
   horizontalPadding = spacing.md,
   scrollRef,
+  footer,
 }: ScreenContainerProps) {
   const { scrollPaddingBottom, excludeBottomSafeArea } =
     useScrollBottomInset(extraScrollBottomInset);
+  const contentBottomPadding = footer
+    ? spacing.lg + extraScrollBottomInset
+    : scrollPaddingBottom;
 
   const frameStyle =
     Platform.OS === 'web'
@@ -54,7 +60,9 @@ export function ScreenContainer({
     <SafeAreaView
       className="flex-1"
       edges={
-        excludeBottomSafeArea ? ['top', 'left', 'right'] : undefined
+        footer || excludeBottomSafeArea
+          ? ['top', 'left', 'right']
+          : undefined
       }
       style={{ backgroundColor }}
     >
@@ -64,7 +72,7 @@ export function ScreenContainer({
             ref={scrollRef}
             className="flex-1"
             contentContainerStyle={{
-              paddingBottom: scrollPaddingBottom,
+              paddingBottom: contentBottomPadding,
               flexGrow: 1,
             }}
             showsVerticalScrollIndicator={false}
@@ -74,6 +82,7 @@ export function ScreenContainer({
         ) : (
           content
         )}
+        {footer}
       </View>
     </SafeAreaView>
   );

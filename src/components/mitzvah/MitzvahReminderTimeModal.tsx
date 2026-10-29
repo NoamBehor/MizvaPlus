@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import DateTimePicker, {
   type DateTimePickerEvent,
 } from '@react-native-community/datetimepicker';
@@ -31,11 +31,46 @@ export function MitzvahReminderTimeModal({
     }
   }, [visible, value]);
 
-  const handlePickerChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
+  const handleIosPickerChange = (
+    _event: DateTimePickerEvent,
+    selectedDate?: Date,
+  ) => {
     if (selectedDate) {
       setPickerDate(selectedDate);
     }
   };
+
+  const handleAndroidChange = (
+    event: DateTimePickerEvent,
+    selectedDate?: Date,
+  ) => {
+    if (event.type === 'dismissed') {
+      onCancel();
+      return;
+    }
+
+    if (event.type === 'set' && selectedDate) {
+      onConfirm(dateToTimeString(selectedDate));
+    }
+  };
+
+  if (Platform.OS === 'android') {
+    if (!visible) {
+      return null;
+    }
+
+    return (
+      <DateTimePicker
+        value={pickerDate}
+        mode="time"
+        display="clock"
+        design="material"
+        is24Hour
+        onChange={handleAndroidChange}
+        locale="he-IL"
+      />
+    );
+  }
 
   return (
     <Modal
@@ -53,7 +88,7 @@ export function MitzvahReminderTimeModal({
             mode="time"
             display="spinner"
             is24Hour
-            onChange={handlePickerChange}
+            onChange={handleIosPickerChange}
             locale="he-IL"
             style={styles.picker}
           />
@@ -98,11 +133,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   title: {
-    ...typography.subtitle,
+    fontSize: 18,
+    fontWeight: '600',
     color: colors.secondary,
     textAlign: 'center',
     paddingTop: spacing.md,
     paddingHorizontal: spacing.md,
+    writingDirection: 'rtl',
   },
   titleRule: {
     height: 2,
@@ -131,7 +168,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.border,
   },
   actionLabel: {
-    ...typography.label,
+    fontSize: 14,
+    fontWeight: '600',
     color: colors.text,
+    writingDirection: 'rtl',
   },
 });

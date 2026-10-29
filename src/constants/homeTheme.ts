@@ -47,6 +47,14 @@ export const homeTheme = {
     shadowRadius: 24,
     elevation: 6,
   },
+  /** Primary explanation action. Matches the existing primary blue. */
+  actionGlow: {
+    shadowColor: '#1D4ED8',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    elevation: 5,
+  },
 } as const;
 
 export const homeFonts = {
